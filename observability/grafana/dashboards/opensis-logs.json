@@ -1,0 +1,165 @@
+{
+  "id": null,
+  "title": "openSIS Logs",
+  "tags": ["openSIS", "docker", "logs", "loki"],
+  "timezone": "browser",
+  "schemaVersion": 16,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "type": "custom",
+        "label": "Service",
+        "hide": 0,
+        "query": "opensis-ui,opensis-db,vault,traefik,grafana,prometheus,alertmanager,mysqld-exporter,node-exporter,cadvisor,blackbox-exporter,cloudflared,promtail,loki,vault-agent-app,vault-agent-db",
+        "options": [
+          { "selected": true, "text": "opensis-ui", "value": "opensis-ui" },
+          { "selected": false, "text": "opensis-db", "value": "opensis-db" },
+          { "selected": false, "text": "vault", "value": "vault" },
+          { "selected": false, "text": "traefik", "value": "traefik" },
+          { "selected": false, "text": "grafana", "value": "grafana" },
+          { "selected": false, "text": "prometheus", "value": "prometheus" },
+          { "selected": false, "text": "alertmanager", "value": "alertmanager" },
+          { "selected": false, "text": "mysqld-exporter", "value": "mysqld-exporter" },
+          { "selected": false, "text": "node-exporter", "value": "node-exporter" },
+          { "selected": false, "text": "cadvisor", "value": "cadvisor" },
+          { "selected": false, "text": "blackbox-exporter", "value": "blackbox-exporter" },
+          { "selected": false, "text": "cloudflared", "value": "cloudflared" },
+          { "selected": false, "text": "promtail", "value": "promtail" },
+          { "selected": false, "text": "loki", "value": "loki" },
+          { "selected": false, "text": "vault-agent-app", "value": "vault-agent-app" },
+          { "selected": false, "text": "vault-agent-db", "value": "vault-agent-db" }
+        ],
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "selected": true,
+          "text": "opensis-ui",
+          "value": "opensis-ui"
+        }
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Selected Service Logs",
+      "type": "logs",
+      "datasource": "Loki",
+      "targets": [
+        {
+          "expr": "{compose_service=\"$service\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "title": "openSIS UI Errors",
+      "type": "logs",
+      "datasource": "Loki",
+      "targets": [
+        {
+          "expr": "{compose_service=\"opensis-ui\"} |= \"error\"",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 14 }
+    },
+    {
+      "id": 3,
+      "title": "Vault Logs",
+      "type": "logs",
+      "datasource": "Loki",
+      "targets": [
+        {
+          "expr": "{compose_service=\"vault\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 14 }
+    },
+    {
+      "id": 4,
+      "title": "Traefik Logs",
+      "type": "logs",
+      "datasource": "Loki",
+      "targets": [
+        {
+          "expr": "{compose_service=\"traefik\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 23 }
+    },
+    {
+      "id": 5,
+      "title": "MariaDB Logs",
+      "type": "logs",
+      "datasource": "Loki",
+      "targets": [
+        {
+          "expr": "{compose_service=\"opensis-db\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 23 }
+    }
+  ],
+  "links": []
+}

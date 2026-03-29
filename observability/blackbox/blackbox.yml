@@ -1,0 +1,17 @@
+modules:
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      preferred_ip_protocol: ip4
+  http_head:
+    prober: http
+    timeout: 5s
+    http:
+      method: HEAD
+      preferred_ip_protocol: ip4
+      valid_status_codes: [200, 301, 302]
+  tcp_connect:
+    prober: tcp
+    timeout: 5s

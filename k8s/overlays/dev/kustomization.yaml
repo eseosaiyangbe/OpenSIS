@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: opensis-dev
+resources:
+  - ../../base
+patches:
+  - path: opensis-ui-configmap-patch.yaml
+  - path: opensis-ui-deployment-patch.yaml
+  - path: opensis-db-statefulset-patch.yaml
+  - path: opensis-ui-ingress-patch.yaml

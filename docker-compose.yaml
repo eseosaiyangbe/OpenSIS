@@ -1,0 +1,678 @@
+services:
+
+  # -----------------------------
+  # FIX: Volume permissions (Vault data)
+  # -----------------------------
+  vault-volume-init:
+    image: alpine:3.20
+    container_name: vault-volume-init
+    restart: "no"
+
+    command: >
+      sh -c "
+        chown -R 1000:1000 /vault_data
+      "
+
+    volumes:
+      - vault_data:/vault_data
+
+    networks:
+      - backend-network
+
+
+  # -----------------------------
+  # FIX: Permissions for bind mount (vault-agent)
+  # -----------------------------
+  vault-agent-init:
+    image: alpine:3.20
+    container_name: vault-agent-init
+    restart: "no"
+
+    command: >
+      sh -c "
+        chown -R 1000:1000 /vault-agent
+      "
+
+    volumes:
+      - ./vault-agent:/vault-agent
+
+    networks:
+      - backend-network
+
+  # -----------------------------
+  # AppRole volume init
+  # -----------------------------
+  approle-volume-init:
+    image: alpine:3.20
+    container_name: approle-volume-init
+    restart: "no"
+
+    command: >
+      sh -c "
+        chown -R 1000:1000 /app_approle /db_approle
+      "
+
+    volumes:
+      - app_runtime_approle:/app_approle
+      - db_runtime_approle:/db_approle
+
+    networks:
+      - backend-network
+
+
+  # -----------------------------
+  # Vault Server
+  # -----------------------------
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: vault
+    restart: unless-stopped
+    user: "1000:1000"
+
+    entrypoint: ["vault"]
+    command: ["server", "-config=/vault/config/vault.hcl"]
+
+    cap_add:
+      - IPC_LOCK
+
+    ports:
+      - "127.0.0.1:8200:8200"
+
+    volumes:
+      - ./vault/config:/vault/config:ro
+      - vault_data:/vault/data
+
+    depends_on:
+      vault-volume-init:
+        condition: service_completed_successfully
+
+    # FIX: Proper API healthcheck (not just port check)
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8200"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - backend-network
+      - frontend-network
+
+
+  # -----------------------------
+  # Vault Bootstrap (Init + Unseal + AppRole)
+  # -----------------------------
+  vault-bootstrap:
+    build:
+      context: .
+      dockerfile: vault-bootstrap/Dockerfile
+
+    container_name: vault-bootstrap
+    restart: "no"
+
+    depends_on:
+      vault-volume-init:
+        condition: service_completed_successfully
+      approle-volume-init:
+        condition: service_completed_successfully
+      vault-agent-init:
+        condition: service_completed_successfully
+      vault:
+        condition: service_healthy
+
+    volumes:
+      - vault_data:/vault/data
+      - ./vault-bootstrap/policies:/policies:ro
+      - ./scripts/bootstrap.sh:/bootstrap.sh:ro
+      - app_runtime_approle:/approle-app
+      - db_runtime_approle:/approle-db
+
+    environment:
+      APP_APPROLE_DIR: /approle-app
+      DB_APPROLE_DIR: /approle-db
+
+    networks:
+      - backend-network
+
+
+  # -----------------------------
+  # Vault Seed (Secrets Injection)
+  # -----------------------------
+  vault-seed:
+    build:
+      context: .
+      dockerfile: vault-seed/Dockerfile
+
+    container_name: vault-seed
+    restart: "no"
+
+    depends_on:
+      vault-bootstrap:
+        condition: service_completed_successfully
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+    volumes:
+      - vault_data:/vault/data
+
+    networks:
+      - backend-network
+
+
+  # -----------------------------
+  # Vault Agent (DB)
+  # -----------------------------
+  vault-agent-db:
+    image: hashicorp/vault:1.15
+    container_name: vault-agent-db
+    restart: unless-stopped
+    user: "1000:1000"
+
+    entrypoint: ["vault"]
+    command: ["agent", "-config=/vault/agent/agent-db.hcl"]
+
+    cap_add:
+      - IPC_LOCK
+
+    depends_on:
+      vault:
+        condition: service_healthy
+      vault-bootstrap:
+        condition: service_completed_successfully
+
+    environment:
+      APP_ENV: ${APP_ENV}
+
+    volumes:
+      - ./vault-agent/db-config:/vault/agent:ro
+      - ./vault-agent/db-templates:/vault/templates:ro
+      - db_runtime_approle:/vault/approle
+      - db_runtime_secrets:/vault/secrets
+
+    networks:
+      - backend-network
+
+
+  # -----------------------------
+  # Vault Agent (App)
+  # -----------------------------
+  vault-agent-app:
+    image: hashicorp/vault:1.15
+    container_name: vault-agent-app
+    restart: unless-stopped
+    user: "1000:1000"
+
+    entrypoint: ["vault"]
+    command: ["agent", "-config=/vault/agent/agent-app.hcl"]
+
+    cap_add:
+      - IPC_LOCK
+
+    depends_on:
+      vault:
+        condition: service_healthy
+      vault-bootstrap:
+        condition: service_completed_successfully
+
+    environment:
+      APP_ENV: ${APP_ENV}
+
+    volumes:
+      - ./vault-agent/app-config:/vault/agent:ro
+      - ./vault-agent/app-templates:/vault/templates:ro
+      - app_runtime_approle:/vault/approle
+      - app_runtime_secrets:/vault/secrets
+
+    networks:
+      - backend-network
+
+
+  # -----------------------------
+  # Database
+  # -----------------------------
+  opensis-db:
+    image: mariadb:10.11.7
+    container_name: opensis-db
+    restart: unless-stopped
+
+    depends_on:
+      vault-agent-db:
+        condition: service_started
+
+    entrypoint: ["/usr/local/bin/mariadb-entrypoint.sh"]
+
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./MYSQL/mysql-config/strict_mode.cnf:/etc/mysql/conf.d/strict_mode.cnf:ro
+      - ./scripts/mariadb-entrypoint.sh:/usr/local/bin/mariadb-entrypoint.sh:ro
+      - db_runtime_secrets:/run/secrets:ro
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          ". /run/secrets/db.env && mysqladmin ping -h 127.0.0.1 -u root -p\"$MYSQL_ROOT_PASSWORD\" --silent",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - backend-network
+
+  # -----------------------------
+  # Opensis UI
+  # -----------------------------
+  opensis-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: opensis-ui:latest
+    container_name: opensis-ui
+    restart: unless-stopped
+
+    depends_on:
+      opensis-db:
+        condition: service_healthy
+      vault-agent-app:
+        condition: service_started
+
+    entrypoint: ["/usr/local/bin/docker-entrypoint-vault.sh"]
+
+    environment:
+      APP_ENV: ${APP_ENV}
+
+    volumes:
+      - app_runtime_secrets:/run/secrets:ro
+
+    expose:
+      - "80"
+
+    ports:
+      - "127.0.0.1:8080:80"
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost/ > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=frontend-network"
+      - "traefik.http.routers.opensis.rule=Host(`opensis.raysosglobal.com`)"
+      - "traefik.http.routers.opensis.entrypoints=web"
+      - "traefik.http.services.opensis.loadbalancer.server.port=80"
+
+    networks:
+      - frontend-network
+      - backend-network
+
+
+  # -----------------------------
+  # Traefik
+  # -----------------------------
+  traefik:
+    image: traefik:v3.6.1
+    container_name: traefik
+    restart: unless-stopped
+
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=frontend-network"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+
+    ports:
+      - "127.0.0.1:80:80"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    networks:
+      - frontend-network
+
+
+  # -----------------------------
+  # Cloudflare Tunnel
+  # -----------------------------
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    profiles: ["dev"]
+
+    command: tunnel --config /etc/cloudflared/config.yaml run
+
+    volumes:
+      - ./cloudflared:/etc/cloudflared
+
+    depends_on:
+      - traefik
+
+    networks:
+      - frontend-network
+
+
+  # -----------------------------
+  # Prometheus (Metrics Collection)
+  # -----------------------------
+  prometheus:
+    image: prom/prometheus:v2.48.1
+    container_name: prometheus
+    restart: unless-stopped
+    profiles: ["dev"]
+
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+
+    ports:
+      - "127.0.0.1:9090:9090"
+
+    networks:
+      - backend-network
+
+
+  # -----------------------------
+  # Alertmanager
+  # -----------------------------
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    restart: unless-stopped
+    profiles: ["dev"]
+
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+
+    volumes:
+      - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+
+    ports:
+      - "127.0.0.1:9093:9093"
+
+    networks:
+      - backend-network
+
+
+  # -----------------------------
+  # Blackbox Exporter
+  # -----------------------------
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: blackbox-exporter
+    restart: unless-stopped
+    profiles: ["dev"]
+
+    command:
+      - "--config.file=/etc/blackbox_exporter/config.yml"
+
+    volumes:
+      - ./observability/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+
+    ports:
+      - "127.0.0.1:9115:9115"
+
+    networks:
+      - backend-network
+
+
+  # -----------------------------
+  # Node Exporter (System Metrics)
+  # -----------------------------
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: node-exporter
+    restart: unless-stopped
+    profiles: ["dev"]
+
+    command:
+      - "--path.procfs=/proc"
+      - "--path.sysfs=/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(dev|proc|sys)($|/)"
+
+    volumes:
+      - /proc:/proc:ro
+      - /sys:/sys:ro
+      - /:/rootfs:ro
+
+    ports:
+      - "127.0.0.1:9100:9100"
+
+    networks:
+      - backend-network
+
+
+  # -----------------------------
+  # cAdvisor (Container Metrics)
+  # -----------------------------
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
+    container_name: cadvisor
+    restart: unless-stopped
+    profiles: ["dev"]
+
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+
+    ports:
+      - "127.0.0.1:8088:8080"
+
+    networks:
+      - backend-network
+
+
+  # -----------------------------
+  # MySQL Exporter (Database Metrics)
+  # -----------------------------
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.15.0
+    container_name: mysqld-exporter
+    restart: unless-stopped
+    profiles: ["dev"]
+    user: "1000:1000"
+
+    entrypoint:
+      - /bin/sh
+      - -ec
+
+    command:
+      - |
+        . /run/secrets/db.env
+        cat > /tmp/.my.cnf <<EOF
+        [client]
+        user=root
+        password=${MYSQL_ROOT_PASSWORD}
+        EOF
+        exec /bin/mysqld_exporter --config.my-cnf=/tmp/.my.cnf --mysqld.address=opensis-db:3306
+
+    depends_on:
+      opensis-db:
+        condition: service_healthy
+
+    volumes:
+      - db_runtime_secrets:/run/secrets:ro
+
+    ports:
+      - "127.0.0.1:9104:9104"
+
+    networks:
+      - backend-network
+
+  # -----------------------------
+  # Loki volume init
+  # -----------------------------
+  loki-volume-init:
+    image: alpine:3.20
+    container_name: loki-volume-init
+    restart: "no"
+    profiles: ["dev"]
+
+    command: >
+      sh -c "
+        chown -R 10001:10001 /loki_data
+      "
+
+    volumes:
+      - loki_data:/loki_data
+
+    networks:
+      - backend-network
+
+  # -----------------------------
+  # Loki
+  # -----------------------------
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: loki
+    restart: unless-stopped
+    profiles: ["dev"]
+
+    depends_on:
+      loki-volume-init:
+        condition: service_completed_successfully
+
+    command:
+      - "-config.file=/etc/loki/local-config.yaml"
+
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+
+    ports:
+      - "127.0.0.1:3100:3100"
+
+    networks:
+      - backend-network
+
+
+  # -----------------------------
+  # Promtail
+  # -----------------------------
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: promtail
+    restart: unless-stopped
+    profiles: ["dev"]
+
+    command:
+      - "-config.file=/etc/promtail/config.yml"
+
+    volumes:
+      - ./observability/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log:/var/log:ro
+
+    networks:
+      - backend-network
+
+  # -----------------------------
+  # Grafana (Dashboards)
+  # -----------------------------
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: grafana
+    restart: unless-stopped
+    profiles: ["dev"]
+
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_INSTALL_PLUGINS: "grafana-piechart-panel"
+
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+    ports:
+      - "127.0.0.1:3000:3000"
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=frontend-network"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.raysosglobal.com`)"
+      - "traefik.http.routers.grafana.entrypoints=web"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+    networks:
+      - frontend-network
+      - backend-network
+
+
+
+
+
+# -----------------------------
+# Networks
+# -----------------------------
+networks:
+  frontend-network:
+    driver: bridge
+    name: frontend-network
+
+  backend-network:
+    driver: bridge
+    internal: true
+    name: backend-network
+
+
+# -----------------------------
+# Volumes
+# -----------------------------
+volumes:
+  db_data:
+    name: opensis_db_data
+
+  vault_data:
+    name: vault_data
+
+  grafana_data:
+    name: grafana_data
+
+  prometheus_data:
+    name: prometheus_data
+
+  loki_data:
+    name: loki_data
+
+  app_runtime_secrets:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: uid=1000,gid=1000,mode=0750,size=1m
+
+  db_runtime_secrets:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: uid=1000,gid=1000,mode=0750,size=1m
+
+  app_runtime_approle:
+    name: app_runtime_approle
+
+  db_runtime_approle:
+    name: db_runtime_approle

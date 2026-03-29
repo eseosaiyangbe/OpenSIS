@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: opensis
+resources:
+  - namespace.yaml
+  - networking/default-deny.yaml
+  - networking/opensis-db-policy.yaml
+  - networking/opensis-ui-policy.yaml
+  - opensis-db/configmap.yaml
+  - opensis-db/serviceaccount.yaml
+  - opensis-db/service.yaml
+  - opensis-db/statefulset.yaml
+  - opensis-ui/configmap.yaml
+  - opensis-ui/serviceaccount.yaml
+  - opensis-ui/deployment.yaml
+  - opensis-ui/service.yaml
+  - opensis-ui/ingress.yaml

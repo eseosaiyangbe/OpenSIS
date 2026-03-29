@@ -1,0 +1,150 @@
+{
+  "id": null,
+  "title": "openSIS Stack Overview",
+  "tags": ["openSIS", "docker", "monitoring"],
+  "timezone": "browser",
+  "schemaVersion": 16,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Scrape Targets Up",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(up)",
+          "legendFormat": "Up Targets"
+        }
+      ],
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "title": "openSIS Probe Success",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "max(probe_success{job=\"blackbox-http\",instance=\"http://opensis-ui/\"})",
+          "legendFormat": "openSIS"
+        }
+      ],
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 }
+    },
+    {
+      "id": 3,
+      "title": "MariaDB Connections %",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "(mysql_global_status_threads_connected / mysql_global_variables_max_connections) * 100",
+          "legendFormat": "Connections %"
+        }
+      ],
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 }
+    },
+    {
+      "id": 4,
+      "title": "Host Memory Available %",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "(node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100",
+          "legendFormat": "Memory %"
+        }
+      ],
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 }
+    },
+    {
+      "id": 7,
+      "title": "Host CPU Usage %",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "(1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))) * 100",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 5 }
+    },
+    {
+      "id": 8,
+      "title": "Host Disk Free %",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "(node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\"}) * 100",
+          "legendFormat": "{{mountpoint}}"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 5 }
+    },
+    {
+      "id": 9,
+      "title": "System Load",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "node_load1",
+          "legendFormat": "1m Load"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 5 }
+    },
+    {
+      "id": 10,
+      "title": "openSIS Probe Latency",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "probe_duration_seconds{job=\"blackbox-http\",instance=\"http://opensis-ui/\"}",
+          "legendFormat": "openSIS"
+        },
+        {
+          "expr": "probe_duration_seconds{job=\"blackbox-http\",instance=\"http://grafana:3000/login\"}",
+          "legendFormat": "Grafana"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 13 }
+    },
+    {
+      "id": 11,
+      "title": "MariaDB Connections",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "mysql_global_status_threads_connected",
+          "legendFormat": "Connected"
+        },
+        {
+          "expr": "mysql_global_variables_max_connections",
+          "legendFormat": "Max"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 13 }
+    },
+    {
+      "id": 12,
+      "title": "MariaDB Slow Queries",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "rate(mysql_global_status_slow_queries[5m])",
+          "legendFormat": "Slow Queries/s"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 13 }
+    }
+  ],
+  "links": []
+}

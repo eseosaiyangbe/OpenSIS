@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: opensis-db
+spec:
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/role: opensis-db-dev
+        vault.hashicorp.com/agent-inject-secret-db.env: kv/data/dev/opensis-db
+        vault.hashicorp.com/agent-inject-template-db.env: |
+          {{- with secret "kv/data/dev/opensis-db" -}}
+          MYSQL_ROOT_PASSWORD={{ .Data.data.MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE={{ .Data.data.MYSQL_DATABASE }}
+          MYSQL_USER={{ .Data.data.MYSQL_USER }}
+          MYSQL_PASSWORD={{ .Data.data.MYSQL_PASSWORD }}
+          {{- end }}
+    spec:
+      containers:
+        - name: mariadb
+          resources:
+            requests:
+              cpu: 250m
+              memory: 768Mi
+            limits:
+              cpu: "1"
+              memory: 1536Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
