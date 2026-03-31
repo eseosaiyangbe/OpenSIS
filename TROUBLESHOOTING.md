@@ -7,7 +7,7 @@ Use this when testing the fixed Vault setup.
 ## Quick Test Commands
 
 ```bash
-cd /home/theinventor/Desktop/devops/devopseasylearning/Dev_test2
+cd /home/theinventor/Desktop/devops/devopseasylearning/OpenSIS
 
 # Clean start (removes old data)
 docker-compose down -v && docker-compose up --build

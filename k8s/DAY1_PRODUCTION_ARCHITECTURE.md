@@ -245,11 +245,11 @@ After the day-1 production layer is stable, the next steps should be:
 
 This architecture maps directly to the current base manifests:
 
-- [k8s/base/opensis-ui/deployment.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/base/opensis-ui/deployment.yaml)
-- [k8s/base/opensis-ui/service.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/base/opensis-ui/service.yaml)
-- [k8s/base/opensis-ui/ingress.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/base/opensis-ui/ingress.yaml)
-- [k8s/base/opensis-db/statefulset.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/base/opensis-db/statefulset.yaml)
-- [k8s/base/opensis-db/service.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/base/opensis-db/service.yaml)
-- [k8s/base/kustomization.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/base/kustomization.yaml)
+- [k8s/base/opensis-ui/deployment.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-ui/deployment.yaml)
+- [k8s/base/opensis-ui/service.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-ui/service.yaml)
+- [k8s/base/opensis-ui/ingress.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-ui/ingress.yaml)
+- [k8s/base/opensis-db/statefulset.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-db/statefulset.yaml)
+- [k8s/base/opensis-db/service.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-db/service.yaml)
+- [k8s/base/kustomization.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/kustomization.yaml)
 
 This base is the starting point, not the finished production platform.

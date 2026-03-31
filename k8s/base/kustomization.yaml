@@ -6,12 +6,48 @@ resources:
   - networking/default-deny.yaml
   - networking/opensis-db-policy.yaml
   - networking/opensis-ui-policy.yaml
+  - networking/opensis-db-backup-policy.yaml
+  - networking/observability-policy.yaml
+  - networking/observability-expansion-policy.yaml
   - opensis-db/configmap.yaml
   - opensis-db/serviceaccount.yaml
   - opensis-db/service.yaml
   - opensis-db/statefulset.yaml
+  - opensis-db-backup/configmap.yaml
+  - opensis-db-backup/serviceaccount.yaml
+  - opensis-db-backup/pvc.yaml
+  - opensis-db-backup/cronjob.yaml
   - opensis-ui/configmap.yaml
   - opensis-ui/serviceaccount.yaml
   - opensis-ui/deployment.yaml
   - opensis-ui/service.yaml
   - opensis-ui/ingress.yaml
+  - observability/prometheus/serviceaccount.yaml
+  - observability/prometheus/configmap.yaml
+  - observability/prometheus/pvc.yaml
+  - observability/prometheus/deployment.yaml
+  - observability/prometheus/service.yaml
+  - observability/grafana/datasources-configmap.yaml
+  - observability/grafana/dashboards-configmap.yaml
+  - observability/grafana/serviceaccount.yaml
+  - observability/grafana/pvc.yaml
+  - observability/grafana/deployment.yaml
+  - observability/grafana/service.yaml
+  - observability/node-exporter/daemonset.yaml
+  - observability/node-exporter/service.yaml
+  - observability/blackbox-exporter/configmap.yaml
+  - observability/blackbox-exporter/deployment.yaml
+  - observability/blackbox-exporter/service.yaml
+  - observability/alertmanager/serviceaccount.yaml
+  - observability/alertmanager/configmap.yaml
+  - observability/alertmanager/deployment.yaml
+  - observability/alertmanager/service.yaml
+  - observability/mysqld-exporter/serviceaccount.yaml
+  - observability/mysqld-exporter/configmap.yaml
+  - observability/mysqld-exporter/deployment.yaml
+  - observability/mysqld-exporter/service.yaml
+  - observability/kube-state-metrics/serviceaccount.yaml
+  - observability/kube-state-metrics/clusterrole.yaml
+  - observability/kube-state-metrics/clusterrolebinding.yaml
+  - observability/kube-state-metrics/deployment.yaml
+  - observability/kube-state-metrics/service.yaml

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-# Pre-check script for Dev_test2 Vault + openSIS stack
+# Pre-check script for OpenSIS Vault + openSIS stack
 # Usage: ./scripts/precheck.sh
 
 REQ_DIRS="vault-agent/db-approle vault-agent/app-approle vault-bootstrap/policies vault-agent/db-config vault-agent/app-config observability/grafana/provisioning/datasources observability/grafana/provisioning/dashboards observability/grafana/dashboards"

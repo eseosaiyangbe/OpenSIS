@@ -19,7 +19,7 @@ This project is set up for Docker Hub.
 
 The GitHub Actions workflow lives at:
 
-- [.github/workflows/dockerhub-opensis-ui.yml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/.github/workflows/dockerhub-opensis-ui.yml)
+- [.github/workflows/dockerhub-opensis-ui.yml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/.github/workflows/dockerhub-opensis-ui.yml)
 
 ## GitHub Settings Required
 
@@ -63,6 +63,11 @@ So practical examples become:
 
 The workflow intentionally does not rely on `latest`.
 
+The first successful workflow run published:
+
+- `docker.io/eseosaiyangbe/opensis-ui:main`
+- `docker.io/eseosaiyangbe/opensis-ui:git-36ee457`
+
 ## Environment Strategy
 
 ### dev
@@ -96,3 +101,7 @@ After the workflow is connected to your GitHub repo and Docker Hub account:
 3. trigger the workflow
 4. confirm the image exists in Docker Hub
 5. update the overlays to use your real Docker Hub image path
+
+The current production-shaped pinned example is:
+
+- `docker.io/eseosaiyangbe/opensis-ui:git-36ee457`

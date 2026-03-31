@@ -7,10 +7,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - opensis.example.com
+        - opensis.raysosglobal.com
       secretName: opensis-ui-tls
   rules:
-    - host: opensis.example.com
+    - host: opensis.raysosglobal.com
       http:
         paths:
           - path: /

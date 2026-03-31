@@ -1,6 +1,6 @@
 # Overlays
 
-This directory contains environment-specific Kustomize overlays built on top of [k8s/base](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/base/kustomization.yaml).
+This directory contains environment-specific Kustomize overlays built on top of [k8s/base](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/kustomization.yaml).
 
 ## Design Intent
 

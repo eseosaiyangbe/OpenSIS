@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+spec:
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/role: "opensis-grafana-dev"
+        vault.hashicorp.com/agent-inject-secret-grafana.env: "kv/data/dev/grafana"
+        vault.hashicorp.com/agent-inject-template-grafana.env: |
+          {{- with secret "kv/data/dev/grafana" -}}
+          GF_SECURITY_ADMIN_USER={{ .Data.data.GF_SECURITY_ADMIN_USER }}
+          GF_SECURITY_ADMIN_PASSWORD={{ .Data.data.GF_SECURITY_ADMIN_PASSWORD }}
+          {{- end }}

@@ -11,8 +11,8 @@
   --network opensis-network \
   --restart unless-stopped \
   -e MYSQL_ROOT_PASSWORD=Raymond@123 \
-  -e MYSQL_DATABASE=openSIS \
-  -e MYSQL_USER=openSIS_rw \
+  -e MYSQL_DATABASE=opensis \
+  -e MYSQL_USER=opensis_rw \
   -e MYSQL_PASSWORD='Op3nS!S' \
   -p 3304:3306 \
   -v $(pwd)/MYSQL/mysql-config/strict_mode.cnf:/etc/mysql/conf.d/strict-mode.cnf \
@@ -28,10 +28,10 @@
   #Enter Password
   Raymond@123
 
-  #Run The Following to Grant Privilege To openSIS_rw User Created 
-DROP DATABASE IF EXISTS openSIS;
-CREATE DATABASE openSIS DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-GRANT ALL PRIVILEGES ON *.* TO 'openSIS_rw'@'%' IDENTIFIED BY 'Op3nS!S' WITH GRANT OPTION;
+  #Run The Following to Grant Privilege To opensis_rw User Created 
+DROP DATABASE IF EXISTS opensis;
+CREATE DATABASE opensis DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON opensis.* TO 'opensis_rw'@'%' IDENTIFIED BY 'Op3nS!S';
 FLUSH PRIVILEGES;
 
 =========================================================================================
@@ -58,8 +58,8 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: Raymond@123
-      MYSQL_DATABASE: openSIS
-      MYSQL_USER: openSIS_rw
+      MYSQL_DATABASE: opensis
+      MYSQL_USER: opensis_rw
       MYSQL_PASSWORD: Op3nS!S
     ports:
       - "3304:3306"
@@ -141,10 +141,10 @@ mysql -u  root -p
 #Enter Password
 Raymond@123
 
-#Run The Following to Grant Privilege To openSIS_rw User Created 
-DROP DATABASE IF EXISTS openSIS;
-CREATE DATABASE openSIS DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-GRANT ALL PRIVILEGES ON *.* TO 'openSIS_rw'@'%' IDENTIFIED BY 'Op3nS!S' WITH GRANT OPTION;
+#Run The Following to Grant Privilege To opensis_rw User Created 
+DROP DATABASE IF EXISTS opensis;
+CREATE DATABASE opensis DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON opensis.* TO 'opensis_rw'@'%' IDENTIFIED BY 'Op3nS!S';
 FLUSH PRIVILEGES;
 
 

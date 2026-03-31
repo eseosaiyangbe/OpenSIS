@@ -31,6 +31,28 @@ It is not full production HA:
 
 Still, the identity model and secret-delivery model are the right ones to learn first.
 
+## Authoritative DB Naming Rule
+
+Treat the openSIS database name as a single source of truth.
+
+For this repo, the canonical database name is:
+
+- `opensis`
+
+That same value must stay aligned everywhere:
+
+- Vault `opensis-db` secret
+- Vault `opensis-app` secret
+- MariaDB bootstrap
+- the database selected during install
+- generated `Data.php` in the UI pod
+- backup jobs
+- exporter configuration
+
+Do not mix names such as `opensis`, `opensis_dev`, `openSIS`, or any other variant across those layers. If the installed schema name and the configured schema name drift apart, the app can appear uninstalled, redirect back to `/install`, or fail readiness and ingress checks.
+
+Unless you are intentionally redesigning the whole stack, use `opensis` everywhere. Consider this a required repo convention, not an optional preference.
+
 ## Suggested Host Shape
 
 Use a dedicated Linux VM if you can.
@@ -57,7 +79,7 @@ Create the config directory:
 sudo mkdir -p /etc/rancher/k3s
 ```
 
-This repo now includes a starter config at [k8s/bootstrap/k3s/config.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/bootstrap/k3s/config.yaml).
+This repo now includes a starter config at [k8s/bootstrap/k3s/config.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/bootstrap/k3s/config.yaml).
 
 Copy it into place:
 
@@ -154,7 +176,7 @@ helm search repo hashicorp/vault
 
 The official Vault on Kubernetes docs say the chart supports multiple modes. For this local bootstrap, we are choosing standalone with persistent storage because it is the simplest clean learning path. HashiCorp also warns that standalone mode is not appropriate for a real production setup, so treat this as a staging step, not the final production Vault topology.
 
-This repo now includes a starter values file at [k8s/bootstrap/vault-values.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/bootstrap/vault-values.yaml).
+This repo now includes a starter values file at [k8s/bootstrap/vault-values.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/bootstrap/vault-values.yaml).
 
 The values should include:
 
@@ -327,7 +349,7 @@ App secret:
 ```bash
 vault kv put kv/production/opensis-app \
   MYSQL_DATABASE="opensis" \
-  MYSQL_USER="opensis_user" \
+  MYSQL_USER="opensis_rw" \
   MYSQL_PASSWORD="change-me" \
   DB_HOST="opensis-db.opensis.svc.cluster.local" \
   DB_PORT="3306"
@@ -339,7 +361,7 @@ DB secret:
 vault kv put kv/production/opensis-db \
   MYSQL_ROOT_PASSWORD="change-me-root" \
   MYSQL_DATABASE="opensis" \
-  MYSQL_USER="opensis_user" \
+  MYSQL_USER="opensis_rw" \
   MYSQL_PASSWORD="change-me"
 ```
 
@@ -415,7 +437,7 @@ If `opensis-db` becomes `Running` and `opensis-ui` becomes `ImagePullBackOff`, t
 
 This repo's base manifest currently uses a local-learning image tag:
 
-- [k8s/base/opensis-ui/deployment.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/base/opensis-ui/deployment.yaml)
+- [k8s/base/opensis-ui/deployment.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-ui/deployment.yaml)
 
 Build the image locally:
 
@@ -462,7 +484,7 @@ spec:
   ingressClassName: nginx
 ```
 
-That change now exists in [k8s/base/opensis-ui/ingress.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/base/opensis-ui/ingress.yaml).
+That change now exists in [k8s/base/opensis-ui/ingress.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-ui/ingress.yaml).
 
 After reapplying, the host-header curl returned:
 
@@ -482,7 +504,7 @@ At the end of this bootstrap, the cluster is in a good day-1 state:
 
 The next missing piece is TLS issuance.
 
-Right now [k8s/base/opensis-ui/ingress.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/base/opensis-ui/ingress.yaml) references the secret `opensis-ui-tls`, but that secret does not exist yet. That is why cert-manager is the next step in the journey.
+Right now [k8s/base/opensis-ui/ingress.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-ui/ingress.yaml) references the secret `opensis-ui-tls`, but that secret does not exist yet. That is why cert-manager is the next step in the journey.
 
 ## Troubleshooting Notes
 
@@ -532,7 +554,7 @@ You want these running:
 - `cert-manager-cainjector`
 - `cert-manager-webhook`
 
-This repo includes a starter issuer manifest at [k8s/bootstrap/cert-manager/selfsigned-clusterissuer.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/bootstrap/cert-manager/selfsigned-clusterissuer.yaml).
+This repo includes a starter issuer manifest at [k8s/bootstrap/cert-manager/selfsigned-clusterissuer.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/bootstrap/cert-manager/selfsigned-clusterissuer.yaml).
 
 Apply it:
 
@@ -543,7 +565,7 @@ kubectl get clusterissuer
 
 The ingress is already prepared to use that issuer:
 
-- [k8s/base/opensis-ui/ingress.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/base/opensis-ui/ingress.yaml)
+- [k8s/base/opensis-ui/ingress.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-ui/ingress.yaml)
 
 Re-apply the base:
 
@@ -584,117 +606,95 @@ After cert-manager is in place, the remaining roadmap items are:
 
 ## Phase 16: Create and Test Kustomize Overlays
 
-After cert-manager is working, the next clean step is to separate local-learning behavior from production intent with Kustomize overlays.
+After cert-manager was in place, the next roadmap item was to add overlays so the repo could express environment-specific changes without duplicating the base.
 
-This repo now includes:
+The overlay structure now lives at:
 
-- [k8s/overlays/dev/kustomization.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/overlays/dev/kustomization.yaml)
-- [k8s/overlays/prod/kustomization.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/overlays/prod/kustomization.yaml)
-- [k8s/overlays/README.md](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/overlays/README.md)
+- [k8s/overlays/dev](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/overlays/dev)
+- [k8s/overlays/prod](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/overlays/prod)
 
-The `dev` overlay currently changes:
+The validation work was done against the `dev` overlay first, because it is the safest place to prove the pattern before making the `prod` overlay more intentional later.
 
-- namespace to `opensis-dev`
-- `APP_ENV` to `dev`
-- Vault roles and paths to `opensis-app-dev` / `opensis-db-dev`
-- ingress host to `opensis.dev.local`
-- issuer to `local-selfsigned`
-- DB storage and resource sizes for a smaller lab footprint
-- app image to `opensis-ui:dev`
+### Commands We Ran
 
-### Prepare Vault for the dev overlay
-
-The `dev` overlay is not just a namespace change. It assumes separate Vault roles, secret paths, and service-account bindings.
-
-Create the namespace and service accounts:
+First, render the overlays before applying them:
 
 ```bash
-kubectl create namespace opensis-dev
-kubectl create serviceaccount opensis-ui -n opensis-dev
-kubectl create serviceaccount opensis-db -n opensis-dev
-kubectl get serviceaccount -n opensis-dev
+kubectl kustomize k8s/base
+kubectl kustomize k8s/overlays/dev
+kubectl kustomize k8s/overlays/prod
 ```
 
-Inside the Vault pod, create the dev policies:
+Prepare Vault for the dev namespace by creating the dev-scoped policies and roles, then seed the dev secrets:
 
 ```bash
-cat <<'EOF' > /tmp/opensis-app-dev-policy.hcl
-path "kv/data/dev/opensis-app" {
-  capabilities = ["read"]
-}
-EOF
+kubectl cp k8s/bootstrap/vault/opensis-app-dev-policy.hcl vault/vault-0:/tmp/opensis-app-dev-policy.hcl
+kubectl cp k8s/bootstrap/vault/opensis-db-dev-policy.hcl vault/vault-0:/tmp/opensis-db-dev-policy.hcl
+kubectl exec -it -n vault vault-0 -- /bin/sh
+```
 
+Inside the Vault pod:
+
+```bash
 vault policy write opensis-app-dev /tmp/opensis-app-dev-policy.hcl
-```
-
-```bash
-cat <<'EOF' > /tmp/opensis-db-dev-policy.hcl
-path "kv/data/dev/opensis-db" {
-  capabilities = ["read"]
-}
-EOF
-
 vault policy write opensis-db-dev /tmp/opensis-db-dev-policy.hcl
-```
 
-Create the dev roles:
-
-```bash
 vault write auth/kubernetes/role/opensis-app-dev \
   bound_service_account_names=opensis-ui \
   bound_service_account_namespaces=opensis-dev \
   policies=opensis-app-dev \
   ttl=1h
-```
 
-```bash
 vault write auth/kubernetes/role/opensis-db-dev \
   bound_service_account_names=opensis-db \
   bound_service_account_namespaces=opensis-dev \
   policies=opensis-db-dev \
   ttl=1h
-```
 
-Seed the dev secrets:
-
-```bash
 vault kv put kv/dev/opensis-app \
-  MYSQL_DATABASE="opensis_dev" \
-  MYSQL_USER="opensis_rw" \
-  MYSQL_PASSWORD="change-me-dev" \
-  DB_HOST="opensis-db.opensis-dev.svc.cluster.local" \
-  DB_PORT="3306"
-```
+  MYSQL_DATABASE=opensis \
+  MYSQL_USER=opensis_rw \
+  MYSQL_PASSWORD=Password1 \
+  DB_HOST=opensis-db.opensis-dev.svc.cluster.local \
+  DB_PORT=3306
 
-```bash
 vault kv put kv/dev/opensis-db \
-  MYSQL_ROOT_PASSWORD="change-me-root-dev" \
-  MYSQL_DATABASE="opensis_dev" \
-  MYSQL_USER="opensis_rw" \
-  MYSQL_PASSWORD="change-me-dev"
+  MYSQL_ROOT_PASSWORD='Raymond@123' \
+  MYSQL_DATABASE=opensis \
+  MYSQL_USER=opensis_rw \
+  MYSQL_PASSWORD=Password1
 ```
 
-### Apply the dev overlay
+Apply and inspect the dev overlay:
 
 ```bash
 kubectl apply -k k8s/overlays/dev
-kubectl get pods -n opensis-dev
-kubectl get svc -n opensis-dev
+kubectl get all -n opensis-dev
 kubectl get ingress -n opensis-dev
 kubectl get certificate -n opensis-dev
+kubectl get secret -n opensis-dev
 ```
 
-Test the dev ingress locally:
+Inspect the first failure symptoms when the overlay did not come up cleanly:
 
 ```bash
-curl -I -H 'Host: opensis.dev.local' http://192.168.2.132
+kubectl get pods -n opensis-dev
+kubectl logs -n opensis-dev deploy/opensis-ui
+kubectl describe pod -n opensis-dev opensis-db-0
+kubectl exec -it -n vault vault-0 -- /bin/sh
+vault kv get kv/dev/opensis-app
+vault kv get kv/dev/opensis-db
 ```
 
-In our run, the dev ingress became available and returned:
+Diagnose the injector path:
 
-- `308 Permanent Redirect`
-
-That confirmed the `dev` overlay routing and TLS secret wiring were correct.
+```bash
+kubectl get pods -n vault
+kubectl logs -n vault deploy/vault-agent-injector --tail=200
+kubectl get mutatingwebhookconfiguration
+kubectl describe mutatingwebhookconfiguration vault-agent-injector-cfg
+kubectl get pod -n opensis-dev <opensis-ui-pod> -o yaml | sed -n '1,220p'
+```
 
 ### Overlay issue we hit: invalid StatefulSet patch
 
@@ -753,9 +753,11 @@ kubectl get pods -n vault -w
 kubectl scale deployment/vault-agent-injector -n vault --replicas=1
 kubectl rollout status deployment/vault-agent-injector -n vault
 kubectl get pods -n vault -o wide
+kubectl logs -n vault deploy/vault-agent-injector --tail=100
 kubectl delete pod -n opensis-dev -l app=opensis-ui
 kubectl delete pod -n opensis-dev -l app=opensis-db
 kubectl get pods -n opensis-dev -w
+kubectl describe pod -n opensis-dev $(kubectl get pods -n opensis-dev -l app=opensis-ui -o jsonpath='{.items[0].metadata.name}')
 ```
 
 Success signal:
@@ -765,17 +767,25 @@ Success signal:
 - `/run/secrets` was mounted
 - the `opensis-ui` pod became `Ready`
 
-### Current result
+### Browser validation commands
+
+Map the dev hostname locally and confirm the UI path:
+
+```bash
+echo "192.168.2.132 opensis.dev.local" | sudo tee -a /etc/hosts
+getent hosts opensis.dev.local
+curl -k -I https://opensis.dev.local
+```
 
 At the end of the dev overlay test:
 
-- `opensis-dev` namespace is working
-- dev-specific Vault roles and secret paths are working
-- dev ingress is working
-- dev TLS secret is issued by cert-manager
-- the overlay model itself is validated
+- `opensis-dev` namespace was working
+- dev-specific Vault roles and secret paths were working
+- dev ingress was working
+- dev TLS was working through cert-manager
+- the overlay model itself was validated
 
-This makes the next step much safer: shaping the `prod` overlay deliberately instead of treating it as theory only.
+This made the later roadmap phases much safer to test in `opensis-dev` first.
 
 ## Phase 17: Add and Validate NetworkPolicy
 
@@ -790,9 +800,9 @@ The goal of this first policy layer is modest and intentional:
 
 This repo now includes:
 
-- [k8s/base/networking/default-deny.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/base/networking/default-deny.yaml)
-- [k8s/base/networking/opensis-ui-policy.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/base/networking/opensis-ui-policy.yaml)
-- [k8s/base/networking/opensis-db-policy.yaml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/base/networking/opensis-db-policy.yaml)
+- [k8s/base/networking/default-deny.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/networking/default-deny.yaml)
+- [k8s/base/networking/opensis-ui-policy.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/networking/opensis-ui-policy.yaml)
+- [k8s/base/networking/opensis-db-policy.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/networking/opensis-db-policy.yaml)
 
 The policies currently allow:
 
@@ -806,7 +816,7 @@ The policies currently allow:
   - the `vault` namespace on TCP `8200`
   - DNS in `kube-system` on TCP/UDP `53`
 
-Apply the policies by applying the overlay again:
+### Commands We Ran
 
 ```bash
 kubectl apply -k k8s/overlays/dev
@@ -844,23 +854,6 @@ As you add more platform components later, you should expect to extend it for:
 - migrations or admin jobs
 - production ingress/controller differences
 
-## Updated Remaining Roadmap
-
-At this point, the completed milestones are:
-
-1. base cluster bootstrap
-2. Vault integration
-3. cert-manager
-4. overlays
-5. NetworkPolicy
-
-The remaining roadmap items are now:
-
-1. pin app images in a real registry workflow
-2. add DB backups
-3. add observability as a separate layer
-4. then revisit the `prod` overlay and shape it more deliberately
-
 ## Phase 18: Pin App Images In A Real Registry Workflow
 
 After the networking layer was validated, the next roadmap item became the image workflow.
@@ -874,11 +867,11 @@ This keeps the local learning path simple while giving the project a real promot
 
 The workflow now lives at:
 
-- [.github/workflows/dockerhub-opensis-ui.yml](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/.github/workflows/dockerhub-opensis-ui.yml)
+- [.github/workflows/dockerhub-opensis-ui.yml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/.github/workflows/dockerhub-opensis-ui.yml)
 
 The supporting notes live at:
 
-- [IMAGE_WORKFLOW.md](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/IMAGE_WORKFLOW.md)
+- [IMAGE_WORKFLOW.md](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/IMAGE_WORKFLOW.md)
 
 Set these in your GitHub repository before using the workflow:
 
@@ -894,16 +887,636 @@ The workflow publishes:
 
 The workflow intentionally avoids `latest`.
 
+### Commands We Ran
+
+Initialize the repo locally if needed, connect it to GitHub, and push the project:
+
+```bash
+git init
+git add .
+git commit -m "Initial OpenSIS Kubernetes learning stack"
+git branch -M main
+git remote add origin https://github.com/<your-github-username>/OpeSIS.git
+git push -u origin main
+```
+
+Trigger and validate the workflow from GitHub Actions, then verify the published image tag locally:
+
+```bash
+docker pull docker.io/eseosaiyangbe/opensis-ui:main
+docker pull docker.io/eseosaiyangbe/opensis-ui:git-36ee457
+```
+
+The first successful workflow validation published:
+
+- `docker.io/eseosaiyangbe/opensis-ui:main`
+- `docker.io/eseosaiyangbe/opensis-ui:git-36ee457`
+
 ### Current overlay state
 
 - `dev` still uses the local-learning image tag `opensis-ui:dev`
-- `prod` now points at a Docker Hub-shaped placeholder image path
+- `prod` now points at the first validated immutable Docker Hub image tag
 
-Before using the `prod` overlay for real, replace:
+The current pinned production-shaped image is:
 
-- `docker.io/eseosaiyangbe/opensis-ui:v1.0.0`
+- `docker.io/eseosaiyangbe/opensis-ui:git-36ee457`
 
-with the exact tag you actually publish.
+Later, when you cut a formal release, you can replace that SHA tag with a version tag like `v1.0.0`.
+
+## Phase 19: Add DB Backups
+
+After the image workflow was validated, the next roadmap item became database backups.
+
+For this repo, the day-1 backup design is intentionally simple and Kubernetes-native:
+
+- a dedicated `CronJob` named `opensis-db-backup`
+- a dedicated `ServiceAccount` named `opensis-db-backup`
+- Vault-injected MariaDB credentials
+- a dedicated backup PVC mounted at `/backup`
+- a retention cleanup step in the backup script
+- narrowly scoped network policy access so only the backup job can reach MariaDB
+
+The main backup files now live at:
+
+- [configmap.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-db-backup/configmap.yaml)
+- [cronjob.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-db-backup/cronjob.yaml)
+- [pvc.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-db-backup/pvc.yaml)
+- [serviceaccount.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-db-backup/serviceaccount.yaml)
+- [opensis-db-backup-policy.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/networking/opensis-db-backup-policy.yaml)
+
+The Vault starter policy files live at:
+
+- [opensis-db-backup-policy.hcl](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/bootstrap/vault/opensis-db-backup-policy.hcl)
+- [opensis-db-backup-dev-policy.hcl](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/bootstrap/vault/opensis-db-backup-dev-policy.hcl)
+
+### Commands We Ran
+
+Copy the backup policy files into Vault and create the backup roles:
+
+```bash
+kubectl cp k8s/bootstrap/vault/opensis-db-backup-policy.hcl vault/vault-0:/tmp/opensis-db-backup-policy.hcl
+kubectl cp k8s/bootstrap/vault/opensis-db-backup-dev-policy.hcl vault/vault-0:/tmp/opensis-db-backup-dev-policy.hcl
+kubectl exec -it -n vault vault-0 -- /bin/sh
+```
+
+Inside the Vault pod:
+
+```bash
+vault policy write opensis-db-backup /tmp/opensis-db-backup-policy.hcl
+vault policy write opensis-db-backup-dev /tmp/opensis-db-backup-dev-policy.hcl
+
+vault write auth/kubernetes/role/opensis-db-backup \
+  bound_service_account_names=opensis-db-backup \
+  bound_service_account_namespaces=opensis \
+  policies=opensis-db-backup \
+  ttl=1h
+
+vault write auth/kubernetes/role/opensis-db-backup-dev \
+  bound_service_account_names=opensis-db-backup \
+  bound_service_account_namespaces=opensis-dev \
+  policies=opensis-db-backup-dev \
+  ttl=1h
+```
+
+Apply the dev overlay, inspect the backup resources, and run a manual backup:
+
+```bash
+kubectl apply -k k8s/overlays/dev
+kubectl get cronjob,pvc,sa -n opensis-dev
+kubectl create job --from=cronjob/opensis-db-backup -n opensis-dev opensis-db-backup-manual
+kubectl wait --for=condition=complete job/opensis-db-backup-manual -n opensis-dev --timeout=300s
+kubectl logs -n opensis-dev job/opensis-db-backup-manual
+```
+
+Confirm the PVC is bound and the artifact persisted:
+
+```bash
+kubectl get pvc -n opensis-dev
+kubectl get pods -n opensis-dev -l job-name=opensis-db-backup-manual
+kubectl describe job -n opensis-dev opensis-db-backup-manual
+kubectl run backup-inspect \
+  -n opensis-dev \
+  --restart=Never \
+  --image=busybox:1.36 \
+  --overrides='
+{
+  "spec": {
+    "containers": [
+      {
+        "name": "backup-inspect",
+        "image": "busybox:1.36",
+        "command": ["sh", "-c", "ls -lh /backup"],
+        "volumeMounts": [
+          {
+            "name": "backup-storage",
+            "mountPath": "/backup"
+          }
+        ]
+      }
+    ],
+    "volumes": [
+      {
+        "name": "backup-storage",
+        "persistentVolumeClaim": {
+          "claimName": "opensis-db-backup-storage"
+        }
+      }
+    ]
+  }
+}'
+kubectl logs -n opensis-dev backup-inspect
+kubectl delete pod -n opensis-dev backup-inspect
+```
+
+The backup layer was validated in `opensis-dev` by:
+
+1. applying the `dev` overlay
+2. creating the Vault backup roles and policies
+3. manually instantiating the `CronJob` as a one-off job
+4. confirming the job completed successfully
+5. confirming the dump file persisted on the backup PVC
+
+The validated backup artifact was:
+
+- `opensis-20260329-185837.sql.gz`
+
+One small shell note from the validation: the first helper-pod inspection command used `-it`, which was unnecessary and produced a TTY warning. Re-running the inspection without TTY worked cleanly.
+
+Reusable helpers for this phase now live under:
+
+- [tests/k8s/backup-run.sh](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/tests/k8s/backup-run.sh)
+- [tests/k8s/backup-inspect.sh](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/tests/k8s/backup-inspect.sh)
+- [tests/k8s/backup-delete.sh](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/tests/k8s/backup-delete.sh)
+
+## Phase 20A: Add Observability Foundation
+
+After the DB backup layer was validated, the next roadmap item became observability.
+
+The first observability slice added in this repo is the foundation layer:
+
+- Prometheus
+- Grafana
+- node-exporter
+- kube-state-metrics
+
+Those manifests now live under:
+
+- [k8s/base/observability/prometheus](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/observability/prometheus)
+- [k8s/base/observability/grafana](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/observability/grafana)
+- [k8s/base/observability/node-exporter](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/observability/node-exporter)
+- [k8s/base/observability/kube-state-metrics](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/observability/kube-state-metrics)
+
+The supporting network policy lives at:
+
+- [observability-policy.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/networking/observability-policy.yaml)
+
+### Commands We Ran
+
+Apply the foundation resources and inspect the new pods:
+
+```bash
+kubectl apply -k k8s/overlays/dev
+kubectl get pods -n opensis-dev | grep -E 'prometheus|grafana|kube-state-metrics|node-exporter'
+kubectl get pvc -n opensis-dev | grep -E 'prometheus-data|grafana-data'
+```
+
+Use port-forward for local access:
+
+```bash
+kubectl port-forward -n opensis-dev svc/grafana 3000:3000
+kubectl port-forward -n opensis-dev svc/prometheus 9090:9090
+```
+
+Trigger a controlled restart to observe recovery behavior:
+
+```bash
+kubectl get pods -n opensis-dev -w
+kubectl rollout restart deployment/opensis-ui -n opensis-dev
+kubectl rollout status deployment/opensis-ui -n opensis-dev
+kubectl get pods -n opensis-dev
+curl -k -I https://opensis.dev.local
+```
+
+This foundation was validated in `opensis-dev` by:
+
+1. applying the `dev` overlay with the new observability resources
+2. confirming Prometheus, Grafana, node-exporter, and kube-state-metrics reached `Running`
+3. confirming Prometheus and Grafana PVCs bound successfully
+4. using a controlled `opensis-ui` rollout restart to observe recovery behavior
+5. confirming the restart showed up through the new monitoring layer
+
+For local access during this phase, Grafana and Prometheus are intentionally consumed through `kubectl port-forward` instead of public ingress.
+
+## Phase 20B: Expand Observability
+
+After the observability foundation was validated, the next expansion added:
+
+- `blackbox-exporter`
+- `Alertmanager`
+- `mysqld-exporter`
+
+Those manifests now live under:
+
+- [k8s/base/observability/blackbox-exporter](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/observability/blackbox-exporter)
+- [k8s/base/observability/alertmanager](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/observability/alertmanager)
+- [k8s/base/observability/mysqld-exporter](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/observability/mysqld-exporter)
+
+The Prometheus configuration was expanded to scrape the new targets and send alerts to Alertmanager through:
+
+- [k8s/base/observability/prometheus/configmap.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/observability/prometheus/configmap.yaml)
+
+The additional observability network policy layer now lives at:
+
+- [k8s/base/networking/observability-expansion-policy.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/networking/observability-expansion-policy.yaml)
+
+The `mysqld-exporter` Vault starter policy files now live at:
+
+- [k8s/bootstrap/vault/opensis-mysqld-exporter-policy.hcl](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/bootstrap/vault/opensis-mysqld-exporter-policy.hcl)
+- [k8s/bootstrap/vault/opensis-mysqld-exporter-dev-policy.hcl](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/bootstrap/vault/opensis-mysqld-exporter-dev-policy.hcl)
+
+The Alertmanager Slack integration files now live at:
+
+- [k8s/base/observability/alertmanager/configmap.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/observability/alertmanager/configmap.yaml)
+- [k8s/base/observability/alertmanager/deployment.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/observability/alertmanager/deployment.yaml)
+- [k8s/base/observability/alertmanager/serviceaccount.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/observability/alertmanager/serviceaccount.yaml)
+- [k8s/overlays/dev/alertmanager-deployment-patch.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/overlays/dev/alertmanager-deployment-patch.yaml)
+
+The Alertmanager Vault starter policy files now live at:
+
+- [k8s/bootstrap/vault/opensis-alertmanager-policy.hcl](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/bootstrap/vault/opensis-alertmanager-policy.hcl)
+- [k8s/bootstrap/vault/opensis-alertmanager-dev-policy.hcl](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/bootstrap/vault/opensis-alertmanager-dev-policy.hcl)
+
+### Commands We Ran
+
+Copy the exporter policy files into Vault and create the exporter roles:
+
+```bash
+kubectl cp k8s/bootstrap/vault/opensis-mysqld-exporter-policy.hcl vault/vault-0:/tmp/opensis-mysqld-exporter-policy.hcl
+kubectl cp k8s/bootstrap/vault/opensis-mysqld-exporter-dev-policy.hcl vault/vault-0:/tmp/opensis-mysqld-exporter-dev-policy.hcl
+kubectl exec -it -n vault vault-0 -- /bin/sh
+```
+
+Inside the Vault pod:
+
+```bash
+vault policy write opensis-mysqld-exporter /tmp/opensis-mysqld-exporter-policy.hcl
+vault policy write opensis-mysqld-exporter-dev /tmp/opensis-mysqld-exporter-dev-policy.hcl
+
+vault write auth/kubernetes/role/opensis-mysqld-exporter \
+  bound_service_account_names=mysqld-exporter \
+  bound_service_account_namespaces=opensis \
+  policies=opensis-mysqld-exporter \
+  ttl=1h
+
+vault write auth/kubernetes/role/opensis-mysqld-exporter-dev \
+  bound_service_account_names=mysqld-exporter \
+  bound_service_account_namespaces=opensis-dev \
+  policies=opensis-mysqld-exporter-dev \
+  ttl=1h
+```
+
+Apply the expanded observability layer and inspect the core resources:
+
+```bash
+kubectl apply -k k8s/overlays/dev
+kubectl get pods -n opensis-dev | grep -E 'alertmanager|blackbox|mysqld|prometheus|grafana'
+kubectl get svc -n opensis-dev | grep -E 'alertmanager|blackbox|mysqld|prometheus|grafana'
+```
+
+Diagnose the first `mysqld-exporter` failure:
+
+```bash
+kubectl get pods -n opensis-dev
+kubectl describe deployment -n opensis-dev mysqld-exporter
+kubectl get rs -n opensis-dev | grep mysqld-exporter
+kubectl describe rs -n opensis-dev mysqld-exporter-7d6dc4d8b6
+kubectl get sa -n opensis-dev | grep mysqld-exporter
+```
+
+Validate the fixed exporter rollout and inspect its logs:
+
+```bash
+kubectl apply -k k8s/overlays/dev
+kubectl rollout restart deployment/mysqld-exporter -n opensis-dev
+kubectl rollout status deployment/mysqld-exporter -n opensis-dev
+kubectl get pods -n opensis-dev | grep mysqld-exporter
+kubectl logs -n opensis-dev $(kubectl get pods -n opensis-dev -l app=mysqld-exporter -o jsonpath='{.items[0].metadata.name}') --tail=100
+kubectl describe pod -n opensis-dev $(kubectl get pods -n opensis-dev -l app=mysqld-exporter -o jsonpath='{.items[0].metadata.name}')
+```
+
+Validate Prometheus targets and the UIs:
+
+```bash
+kubectl port-forward -n opensis-dev svc/prometheus 9090:9090
+kubectl port-forward -n opensis-dev svc/grafana 3000:3000
+kubectl port-forward -n opensis-dev svc/alertmanager 9093:9093
+```
+
+When Prometheus needed a config reload, restart it and confirm the single-replica PVC-backed rollout behavior:
+
+```bash
+kubectl rollout restart deployment/prometheus -n opensis-dev
+kubectl rollout status deployment/prometheus -n opensis-dev
+kubectl scale deployment/prometheus -n opensis-dev --replicas=0
+kubectl scale deployment/prometheus -n opensis-dev --replicas=1
+kubectl rollout status deployment/prometheus -n opensis-dev
+```
+
+Reapply the `Recreate` strategy improvement and verify Grafana restart behavior:
+
+```bash
+kubectl apply -k k8s/overlays/dev
+kubectl rollout restart deployment/grafana -n opensis-dev
+kubectl rollout status deployment/grafana -n opensis-dev
+kubectl get pods -n opensis-dev | grep grafana
+```
+
+Wire Alertmanager to Slack with a temporary Kubernetes Secret-backed approach and validate the receiver path:
+
+```bash
+kubectl apply -k k8s/overlays/dev
+kubectl rollout restart deployment/alertmanager -n opensis-dev
+kubectl rollout status deployment/alertmanager -n opensis-dev
+kubectl logs -n opensis-dev deploy/alertmanager --tail=100
+kubectl scale deployment/opensis-ui -n opensis-dev --replicas=0
+kubectl scale deployment/opensis-ui -n opensis-dev --replicas=1
+kubectl rollout status deployment/opensis-ui -n opensis-dev
+```
+
+Diagnose the first Slack delivery failure and inspect the live policy:
+
+```bash
+kubectl logs -n opensis-dev deploy/alertmanager --tail=200
+kubectl get networkpolicy -n opensis-dev alertmanager -o yaml
+kubectl logs -n opensis-dev deploy/alertmanager --since=2m
+```
+
+After allowing Alertmanager egress for DNS and HTTPS, verify the live Slack path again:
+
+```bash
+kubectl apply -k k8s/overlays/dev
+kubectl rollout restart deployment/alertmanager -n opensis-dev
+kubectl rollout status deployment/alertmanager -n opensis-dev
+kubectl logs -n opensis-dev deploy/alertmanager --since=2m
+kubectl scale deployment/opensis-ui -n opensis-dev --replicas=0
+kubectl scale deployment/opensis-ui -n opensis-dev --replicas=1
+kubectl rollout status deployment/opensis-ui -n opensis-dev
+```
+
+Tune the blackbox probe path after Slack delivery started working:
+
+```bash
+kubectl logs -n opensis-dev deploy/blackbox-exporter --tail=100
+kubectl apply -k k8s/overlays/dev
+kubectl logs -n opensis-dev deploy/blackbox-exporter --since=2m
+kubectl logs -n opensis-dev deploy/alertmanager --since=2m
+```
+
+Migrate Alertmanager from the temporary Kubernetes `Secret` path to Vault and validate the final design:
+
+```bash
+kubectl cp k8s/bootstrap/vault/opensis-alertmanager-policy.hcl vault/vault-0:/tmp/opensis-alertmanager-policy.hcl
+kubectl cp k8s/bootstrap/vault/opensis-alertmanager-dev-policy.hcl vault/vault-0:/tmp/opensis-alertmanager-dev-policy.hcl
+kubectl exec -it -n vault vault-0 -- /bin/sh
+```
+
+Inside the Vault pod:
+
+```bash
+vault kv put kv/dev/alertmanager-slack \
+  SLACK_WEBHOOK_URL='https://hooks.slack.com/services/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'
+
+vault kv put kv/production/alertmanager-slack \
+  SLACK_WEBHOOK_URL='https://hooks.slack.com/services/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'
+
+vault policy write opensis-alertmanager /tmp/opensis-alertmanager-policy.hcl
+vault policy write opensis-alertmanager-dev /tmp/opensis-alertmanager-dev-policy.hcl
+
+vault write auth/kubernetes/role/opensis-alertmanager \
+  bound_service_account_names=alertmanager \
+  bound_service_account_namespaces=opensis \
+  policies=opensis-alertmanager \
+  ttl=1h
+
+vault write auth/kubernetes/role/opensis-alertmanager-dev \
+  bound_service_account_names=alertmanager \
+  bound_service_account_namespaces=opensis-dev \
+  policies=opensis-alertmanager-dev \
+  ttl=1h
+```
+
+Back on the host:
+
+```bash
+kubectl apply -k k8s/overlays/dev
+kubectl rollout restart deployment/alertmanager -n opensis-dev
+kubectl rollout status deployment/alertmanager -n opensis-dev
+kubectl logs -n opensis-dev deploy/alertmanager --tail=100
+kubectl scale deployment/opensis-ui -n opensis-dev --replicas=0
+kubectl scale deployment/opensis-ui -n opensis-dev --replicas=1
+kubectl rollout status deployment/opensis-ui -n opensis-dev
+```
+
+This expansion was validated in `opensis-dev` by:
+
+1. applying the `dev` overlay with the expansion resources
+2. confirming `alertmanager`, `blackbox-exporter`, and `mysqld-exporter` resources were created
+3. confirming `alertmanager`, `blackbox-exporter`, `grafana`, and `prometheus` reached healthy `Running` state
+4. creating the `opensis-mysqld-exporter-dev` Vault role and policy so the exporter could authenticate cleanly
+5. validating Prometheus target discovery after reloading Prometheus
+6. integrating Alertmanager with Slack and proving `FIRING` and `RESOLVED` notifications reached Slack
+7. migrating Alertmanager from a temporary Kubernetes `Secret` to Vault-backed injection and validating the same Slack flow again
+
+During validation, six important fixes were made:
+
+1. the initial `mysqld-exporter` Deployment defined its own `vault-secrets` volume and `/run/secrets` mount, which conflicted with the Vault injector and produced an invalid pod spec
+2. MariaDB `NetworkPolicy` ingress was expanded to allow `app: mysqld-exporter`, which removed repeated exporter-side `connection refused` errors
+3. both Prometheus and Grafana were updated to use `strategy: Recreate` so restarts behave correctly with their single-replica `ReadWriteOnce` PVCs
+4. Alertmanager initially had no egress path for DNS or outbound HTTPS, so Slack delivery failed until the `alertmanager` `NetworkPolicy` allowed DNS on `53` and HTTPS on `443`
+5. the blackbox probes were initially noisy because `blackbox-exporter` had egress to the app and DB, but `opensis-ui` and `opensis-db` were not allowing probe ingress back in; both app policies were expanded to allow `app: blackbox-exporter`
+6. Alertmanager started with a temporary Kubernetes `Secret` for the Slack webhook to prove the path quickly, but was then migrated to Vault so the final secret-management model remained consistent with the rest of the stack
+
+A final startup polish was also added to the exporter wrapper script so it waits for MariaDB TCP reachability before launching the exporter process:
+
+- [k8s/base/observability/mysqld-exporter/configmap.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/observability/mysqld-exporter/configmap.yaml)
+## Phase 20C: Harden UI Portability And Repeatability
+
+After the Slack and observability work, the browser path exposed one more portability problem in `opensis-dev`:
+
+- the UI initially pointed at `opensis_dev`, while the real installed schema lived in `opensis`
+- `openSIS` still expected a generated `Data.php`, even though the pod already had Vault-injected `app.env`
+- the MariaDB app user `opensis_rw` did not automatically have privileges on the real installed `opensis` schema
+- the application also behaved differently for non-browser user agents, which caused Kubernetes probes to mark the pod unhealthy even when browser traffic was fine
+
+The issue was diagnosed with these commands:
+
+```bash
+kubectl exec -n opensis-dev deploy/opensis-ui -- sh -lc 'cat /run/secrets/app.env'
+kubectl exec -n opensis-dev opensis-db-0 -- sh -lc 'mariadb -u root -p"$MYSQL_ROOT_PASSWORD" -e "SHOW DATABASES;"'
+kubectl exec -n opensis-dev opensis-db-0 -- sh -lc 'mariadb -u root -p"$MYSQL_ROOT_PASSWORD" -D opensis -e "show tables; select * from app;"'
+kubectl logs -n opensis-dev deploy/opensis-ui --tail=200
+```
+
+The first live recovery was:
+
+```bash
+vault kv put kv/dev/opensis-app \
+  MYSQL_DATABASE=opensis \
+  MYSQL_USER=opensis_rw \
+  MYSQL_PASSWORD=Password1 \
+  DB_HOST=opensis-db.opensis-dev.svc.cluster.local \
+  DB_PORT=3306
+
+kubectl exec -n opensis-dev opensis-db-0 -- sh -lc 'mariadb -u root -p"$MYSQL_ROOT_PASSWORD" -e "GRANT ALL PRIVILEGES ON opensis.* TO \"opensis_rw\"@\"%\" IDENTIFIED BY \"Password1\"; FLUSH PRIVILEGES;"'
+kubectl rollout restart deployment/opensis-ui -n opensis-dev
+```
+
+To make the fix repeatable across fresh pods and fresh machines, two repo-level changes were made:
+
+1. [k8s/base/opensis-ui/deployment.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-ui/deployment.yaml) now generates `/var/www/openSIS/Data.php` from the Vault-rendered `/run/secrets/app.env` before Apache starts
+2. [k8s/base/opensis-db/configmap.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/opensis-db/configmap.yaml) now wraps MariaDB startup with a small grant-reconciliation step that re-applies the application user privileges for the bootstrap DB and common openSIS database names such as `opensis` and `openSIS` whenever they exist
+
+A second runtime polish was also added to the UI deployment so Kubernetes probes send a browser-like `User-Agent` instead of the default `kube-probe/...` string. This matters because openSIS only executes some DB work when the user agent looks like a browser.
+
+After those changes, the important validation commands were:
+
+```bash
+kubectl apply -k k8s/overlays/dev
+kubectl rollout restart deployment/opensis-ui -n opensis-dev
+kubectl get pods -n opensis-dev | grep opensis-ui
+curl -k -A 'Mozilla/5.0' -I https://opensis.dev.local
+```
+
+The expected healthy result is:
+
+- the newest `opensis-ui` pod reaches `1/1 Running`
+- browser traffic returns `HTTP/2 200`
+- `Data.php` is present in the UI pod after each restart
+- the fix survives new pod creation instead of depending on a one-off manual file copy
+
+## Phase 20D: Add GitOps With Argo CD
+
+Before shaping the `prod` overlay, GitOps was added so `opensis-dev` could be reconciled from Git instead of relying only on manual `kubectl apply -k` runs. Argo CD was chosen as the GitOps controller.
+
+The repo-owned GitOps layer lives in:
+
+- [k8s/gitops/argocd/project.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/gitops/argocd/project.yaml)
+- [k8s/gitops/argocd/opensis-dev-application.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/gitops/argocd/opensis-dev-application.yaml)
+- [k8s/gitops/argocd/opensis-prod-application.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/gitops/argocd/opensis-prod-application.yaml)
+- [k8s/gitops/README.md](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/gitops/README.md)
+
+The live install and registration flow was:
+
+```bash
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
+
+That first install hit a CRD annotation-size problem on `applicationsets.argoproj.io`, so the install was completed with server-side apply:
+
+```bash
+kubectl apply --server-side -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl get pods -n argocd
+```
+
+Once Argo CD itself was healthy, the repo-owned GitOps definitions were applied:
+
+```bash
+kubectl apply -k k8s/gitops/argocd
+kubectl get applications.argoproj.io -n argocd
+kubectl describe application opensis-dev -n argocd
+```
+
+Because the GitHub repository is private, the Applications could not sync over anonymous HTTPS. The GitOps manifests were switched to SSH and a dedicated Argo CD deploy key was generated instead:
+
+```bash
+ssh-keygen -t ed25519 -N '' -C 'argocd-opensis-github' -f /tmp/argocd-opensis-github
+cat /tmp/argocd-opensis-github.pub
+```
+
+The public key was added in GitHub as a read-only deploy key for the repository, and Argo CD was given the matching private key through a repository secret. After that, a hard refresh was enough to trigger real reconciliation:
+
+```bash
+kubectl annotate application opensis-dev -n argocd argocd.argoproj.io/refresh=hard --overwrite
+kubectl annotate application opensis-prod -n argocd argocd.argoproj.io/refresh=hard --overwrite
+kubectl get applications.argoproj.io -n argocd
+```
+
+The expected steady state is:
+
+- `opensis-dev` = `Synced`, `Healthy`
+- `opensis-prod` = `OutOfSync`, `Healthy`
+
+That result is intentional. `dev` is now fully GitOps-managed, while `prod` is only registered in Argo CD until the production overlay is shaped more deliberately.
+
+## Phase 21: Shape The Prod Overlay Deliberately
+
+With `dev` now GitOps-managed and aligned to the normalized baseline, the `prod` overlay was tightened so it reflects intentional production behavior instead of just a lightly modified copy of `dev`.
+
+The production overlay now carries its own explicit patches for:
+
+- [k8s/overlays/prod/opensis-ui-ingress-patch.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/overlays/prod/opensis-ui-ingress-patch.yaml)
+- [k8s/overlays/prod/prometheus-configmap-patch.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/overlays/prod/prometheus-configmap-patch.yaml)
+- [k8s/overlays/prod/prometheus-deployment-patch.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/overlays/prod/prometheus-deployment-patch.yaml)
+- [k8s/overlays/prod/prometheus-pvc-patch.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/overlays/prod/prometheus-pvc-patch.yaml)
+- [k8s/overlays/prod/grafana-deployment-patch.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/overlays/prod/grafana-deployment-patch.yaml)
+- [k8s/overlays/prod/grafana-pvc-patch.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/overlays/prod/grafana-pvc-patch.yaml)
+
+The most important production-specific changes were:
+
+1. Prometheus storage was increased to `20Gi`, retention was set to `15d`, and CPU/memory requests and limits were raised to more realistic production values.
+2. Grafana storage was increased to `5Gi`, and Grafana CPU/memory requests and limits were raised above the dev defaults.
+3. The production ingress host and the production blackbox HTTP probe target were both changed from the placeholder `opensis.example.com` to the real hostname `opensis.raysosglobal.com`.
+4. Grafana admin credentials were removed from inline manifest defaults and moved to Vault so they follow the same secret-delivery model as the rest of the stack.
+
+The Grafana Vault move added these repo pieces:
+
+- [k8s/base/observability/grafana/serviceaccount.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/observability/grafana/serviceaccount.yaml)
+- [k8s/base/observability/grafana/deployment.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/base/observability/grafana/deployment.yaml)
+- [k8s/overlays/dev/grafana-deployment-patch.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/overlays/dev/grafana-deployment-patch.yaml)
+- [k8s/bootstrap/vault/opensis-grafana-policy.hcl](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/bootstrap/vault/opensis-grafana-policy.hcl)
+- [k8s/bootstrap/vault/opensis-grafana-dev-policy.hcl](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/bootstrap/vault/opensis-grafana-dev-policy.hcl)
+
+The Vault bootstrap flow for Grafana is now:
+
+```bash
+kubectl cp k8s/bootstrap/vault/opensis-grafana-policy.hcl vault/vault-0:/tmp/opensis-grafana-policy.hcl
+kubectl cp k8s/bootstrap/vault/opensis-grafana-dev-policy.hcl vault/vault-0:/tmp/opensis-grafana-dev-policy.hcl
+kubectl exec -it -n vault vault-0 -- /bin/sh
+```
+
+Inside the Vault pod:
+
+```bash
+vault policy write opensis-grafana /tmp/opensis-grafana-policy.hcl
+vault policy write opensis-grafana-dev /tmp/opensis-grafana-dev-policy.hcl
+
+vault write auth/kubernetes/role/opensis-grafana   bound_service_account_names=grafana   bound_service_account_namespaces=opensis   policies=opensis-grafana   ttl=1h
+
+vault write auth/kubernetes/role/opensis-grafana-dev   bound_service_account_names=grafana   bound_service_account_namespaces=opensis-dev   policies=opensis-grafana-dev   ttl=1h
+
+vault kv put kv/production/grafana   GF_SECURITY_ADMIN_USER=admin   GF_SECURITY_ADMIN_PASSWORD='choose-a-strong-prod-password'
+
+vault kv put kv/dev/grafana   GF_SECURITY_ADMIN_USER=admin   GF_SECURITY_ADMIN_PASSWORD='choose-a-strong-dev-password'
+```
+
+The render validation commands for this phase were:
+
+```bash
+kubectl kustomize k8s/overlays/dev
+kubectl kustomize k8s/overlays/prod
+```
+
+The expected production shape is now:
+
+- Grafana no longer relies on inline `admin/admin` credentials.
+- the production ingress host is `opensis.raysosglobal.com`.
+- the production blackbox HTTP probe checks `https://opensis.raysosglobal.com`.
+- Prometheus and Grafana have production-sized persistence and resources rather than inheriting only the base defaults.
+
+## Updated Remaining Roadmap
+
+The roadmap is now functionally complete for this learning stack. From here, the next steps are no longer foundational milestones but operational polish, hardening, and real production rollout work.
 
 ## Notes For Later Production
 

@@ -8,3 +8,9 @@ patches:
   - path: opensis-ui-deployment-patch.yaml
   - path: opensis-db-statefulset-patch.yaml
   - path: opensis-ui-ingress-patch.yaml
+  - path: opensis-db-backup-cronjob-patch.yaml
+  - path: opensis-db-backup-pvc-patch.yaml
+  - path: kube-state-metrics-clusterrolebinding-patch.yaml
+  - path: mysqld-exporter-deployment-patch.yaml
+  - path: alertmanager-deployment-patch.yaml
+  - path: grafana-deployment-patch.yaml

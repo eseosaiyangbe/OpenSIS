@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-pre-populate-only: "true"
+        vault.hashicorp.com/auth-path: "auth/kubernetes"
+        vault.hashicorp.com/role: "opensis-alertmanager"
+        vault.hashicorp.com/secret-volume-path: "/run/secrets"
+        vault.hashicorp.com/agent-inject-secret-slack.env: "kv/data/production/alertmanager-slack"
+        vault.hashicorp.com/agent-inject-template-slack.env: |
+          {{- with secret "kv/data/production/alertmanager-slack" -}}
+          SLACK_WEBHOOK_URL={{ .Data.data.SLACK_WEBHOOK_URL }}
+          {{- end }}
+    spec:
+      serviceAccountName: alertmanager
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.27.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              . /run/secrets/slack.env
+              SLACK_WEBHOOK_URL_ESCAPED=$(printf '%s\n' "$SLACK_WEBHOOK_URL" | sed 's/[&|]/\\&/g')
+              sed "s|__SLACK_WEBHOOK_URL__|$SLACK_WEBHOOK_URL_ESCAPED|g" /etc/alertmanager/alertmanager.yml.tmpl > /etc/alertmanager/generated/alertmanager.yml
+              exec /bin/alertmanager \
+                --config.file=/etc/alertmanager/generated/alertmanager.yml \
+                --storage.path=/alertmanager
+          ports:
+            - containerPort: 9093
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9093
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9093
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager/alertmanager.yml.tmpl
+              subPath: alertmanager.yml.tmpl
+            - name: generated-config
+              mountPath: /etc/alertmanager/generated
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+      volumes:
+        - name: config
+          configMap:
+            name: alertmanager-config
+        - name: generated-config
+          emptyDir: {}

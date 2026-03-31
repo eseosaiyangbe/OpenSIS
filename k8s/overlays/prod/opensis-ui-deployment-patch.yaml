@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: opensis-ui
-          image: docker.io/eseosaiyangbe/opensis-ui:v1.0.0
+          image: docker.io/eseosaiyangbe/opensis-ui:git-36ee457
           imagePullPolicy: IfNotPresent
           resources:
             requests:

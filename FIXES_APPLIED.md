@@ -177,7 +177,7 @@ fi
 
 ### Test 1: Clean Start
 ```bash
-cd /home/theinventor/Desktop/devops/devopseasylearning/Dev_test2
+cd /home/theinventor/Desktop/devops/devopseasylearning/OpenSIS
 
 # Remove old volumes to simulate fresh start
 docker-compose down -v

@@ -1,7 +1,7 @@
 # Kubernetes Base
 
-See also: [Day-1 Production Architecture](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/DAY1_PRODUCTION_ARCHITECTURE.md)
-See also: [From-Scratch Local Bootstrap](/home/theinventor/Desktop/devops/devopseasylearning/Dev_test2/k8s/FROM_SCRATCH_LOCAL_BOOTSTRAP.md)
+See also: [Day-1 Production Architecture](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/DAY1_PRODUCTION_ARCHITECTURE.md)
+See also: [From-Scratch Local Bootstrap](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/FROM_SCRATCH_LOCAL_BOOTSTRAP.md)
 
 This `k8s/` tree is the first production-minded migration layer for the business path only:
 

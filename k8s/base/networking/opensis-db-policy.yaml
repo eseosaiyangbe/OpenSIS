@@ -14,6 +14,15 @@ spec:
         - podSelector:
             matchLabels:
               app: opensis-ui
+        - podSelector:
+            matchLabels:
+              app: opensis-db-backup
+        - podSelector:
+            matchLabels:
+              app: mysqld-exporter
+        - podSelector:
+            matchLabels:
+              app: blackbox-exporter
       ports:
         - protocol: TCP
           port: 3306

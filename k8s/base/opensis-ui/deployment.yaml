@@ -32,12 +32,65 @@ spec:
         - name: opensis-ui
           image: opensis-ui:dev
           imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              SECRETS_FILE="${APP_SECRETS_FILE:-/run/secrets/app.env}"
+              WAIT_TIMEOUT="${APP_SECRETS_WAIT_TIMEOUT:-60}"
+
+              echo "[entrypoint] Waiting for Vault-rendered application secrets..."
+              timeout="$WAIT_TIMEOUT"
+              while [ "$timeout" -gt 0 ]; do
+                if [ -s "$SECRETS_FILE" ] && grep -q DB_HOST "$SECRETS_FILE"; then
+                  break
+                fi
+                sleep 2
+                timeout=$((timeout-2))
+              done
+
+              if [ "$timeout" -eq 0 ]; then
+                echo "[entrypoint] ERROR: Vault secrets not available after ${WAIT_TIMEOUT} seconds."
+                exit 1
+              fi
+
+              echo "[entrypoint] Secrets file detected."
+              set -a
+              . "$SECRETS_FILE"
+              set +a
+
+              : "${DB_HOST:?Missing DB_HOST}"
+              : "${DB_PORT:?Missing DB_PORT}"
+              : "${MYSQL_DATABASE:?Missing MYSQL_DATABASE}"
+              : "${MYSQL_USER:?Missing MYSQL_USER}"
+              : "${MYSQL_PASSWORD:?Missing MYSQL_PASSWORD}"
+
+              cat > /var/www/openSIS/Data.php <<DATAEOF
+              <?php
+              \$DatabaseType = 'mysqli';
+              \$DatabaseServer = '${DB_HOST}';
+              \$DatabaseUsername = '${MYSQL_USER}';
+              \$DatabasePassword = '${MYSQL_PASSWORD}';
+              \$DatabaseName = '${MYSQL_DATABASE}';
+              \$DatabasePort = '${DB_PORT}';
+              ?>
+              DATAEOF
+
+              chown www-data:www-data /var/www/openSIS/Data.php
+              chmod 644 /var/www/openSIS/Data.php
+
+              echo "[entrypoint] Environment successfully loaded."
+              exec docker-php-entrypoint apache2-foreground
           env:
             - name: APP_ENV
               valueFrom:
                 configMapKeyRef:
                   name: opensis-ui-config
                   key: APP_ENV
+            - name: APP_SECRETS_FILE
+              value: /run/secrets/app.env
+            - name: APP_SECRETS_WAIT_TIMEOUT
+              value: "60"
           ports:
             - containerPort: 80
               name: http
@@ -45,18 +98,27 @@ spec:
             httpGet:
               path: /
               port: 80
+              httpHeaders:
+                - name: User-Agent
+                  value: Mozilla/5.0
             initialDelaySeconds: 20
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /
               port: 80
+              httpHeaders:
+                - name: User-Agent
+                  value: Mozilla/5.0
             initialDelaySeconds: 40
             periodSeconds: 20
           startupProbe:
             httpGet:
               path: /
               port: 80
+              httpHeaders:
+                - name: User-Agent
+                  value: Mozilla/5.0
             failureThreshold: 30
             periodSeconds: 5
           resources:
