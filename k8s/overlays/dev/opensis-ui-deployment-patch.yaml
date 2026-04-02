@@ -20,8 +20,6 @@ spec:
     spec:
       containers:
         - name: opensis-ui
-          image: opensis-ui:dev
-          imagePullPolicy: IfNotPresent
           resources:
             requests:
               cpu: 200m

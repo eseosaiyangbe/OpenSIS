@@ -914,12 +914,20 @@ The first successful workflow validation published:
 
 ### Current overlay state
 
-- `dev` still uses the local-learning image tag `opensis-ui:dev`
-- `prod` now points at the first validated immutable Docker Hub image tag
+- `dev` is explicitly pinned through the `dev` overlay to `opensis-ui:dev`
+- `prod` is explicitly pinned through the `prod` overlay to the immutable registry tag `docker.io/eseosaiyangbe/opensis-ui:git-36ee457`
+- the base deployment now carries only a neutral published baseline image, while overlays own the environment-specific image decision
 
 The current pinned production-shaped image is:
 
 - `docker.io/eseosaiyangbe/opensis-ui:git-36ee457`
+
+Recommended discipline going forward:
+
+- rebuild and tag `dev` separately from `prod`
+- keep `dev` on a fast-moving lab tag
+- keep `prod` on an immutable release or commit tag
+- change image references in the overlays, not ad hoc in the live cluster
 
 Later, when you cut a formal release, you can replace that SHA tag with a version tag like `v1.0.0`.
 

@@ -30,7 +30,7 @@ spec:
       serviceAccountName: opensis-ui
       containers:
         - name: opensis-ui
-          image: opensis-ui:dev
+          image: docker.io/eseosaiyangbe/opensis-ui:main
           imagePullPolicy: IfNotPresent
           command:
             - /bin/sh

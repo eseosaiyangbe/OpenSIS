@@ -20,7 +20,7 @@ It currently changes:
 - ingress host to `opensis.dev.local`
 - issuer to `local-selfsigned`
 - smaller DB storage and lower resource requests
-- app image to `opensis-ui:dev`
+- app image pinned through Kustomize to `opensis-ui:dev`
 
 Apply it with:
 
@@ -38,10 +38,10 @@ It currently changes:
 - app replicas to `2`
 - ingress host to `opensis.example.com`
 - issuer to `letsencrypt-prod`
-- app image to a registry-backed placeholder
+- app image pinned through Kustomize to the registry-backed production tag `docker.io/eseosaiyangbe/opensis-ui:git-36ee457`
 - production Vault roles and secret paths
 
-Before using it, replace the placeholder image and hostname values.
+Before using it in a real release flow, replace the current production tag with your next immutable release tag and keep the hostname values aligned.
 
 Apply it with:
 

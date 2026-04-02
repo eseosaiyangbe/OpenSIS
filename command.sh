@@ -508,7 +508,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: opensis-ui:latest
+    image: opensis-ui:dev
     container_name: opensis-ui
     restart: unless-stopped
 

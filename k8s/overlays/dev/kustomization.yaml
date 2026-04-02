@@ -14,3 +14,7 @@ patches:
   - path: mysqld-exporter-deployment-patch.yaml
   - path: alertmanager-deployment-patch.yaml
   - path: grafana-deployment-patch.yaml
+images:
+  - name: docker.io/eseosaiyangbe/opensis-ui
+    newName: opensis-ui
+    newTag: dev

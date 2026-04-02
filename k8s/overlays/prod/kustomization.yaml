@@ -15,3 +15,6 @@ patches:
   - path: prometheus-pvc-patch.yaml
   - path: grafana-deployment-patch.yaml
   - path: grafana-pvc-patch.yaml
+images:
+  - name: docker.io/eseosaiyangbe/opensis-ui
+    newTag: git-36ee457
