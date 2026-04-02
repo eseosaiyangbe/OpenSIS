@@ -32,5 +32,5 @@ spec:
         - ipBlock:
             cidr: 0.0.0.0/0
       ports:
-        - protocol: TCP
-          port: 443
+        - protocol: UDP
+          port: 7844
