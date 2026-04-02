@@ -1705,7 +1705,7 @@ This phase made the Cloudflare edge path repo-driven and ready for live activati
 What changed in the repo:
 
 - `k8s/platform/cloudflare/deployment.yaml`
-  - now uses Vault Agent injection to render `cloudflare.env`
+  - now uses Vault Agent injection to render a token file at `/run/secrets/cloudflare-token`
   - keeps `cloudflared` readiness and liveness probes through the built-in metrics endpoint on port `2000`
 - `k8s/platform/cloudflare/networkpolicy.yaml`
   - now allows egress to Vault on port `8200` in addition to DNS and outbound HTTPS

@@ -18,10 +18,10 @@ spec:
         vault.hashicorp.com/auth-path: "auth/kubernetes"
         vault.hashicorp.com/role: "opensis-cloudflare"
         vault.hashicorp.com/secret-volume-path: "/run/secrets"
-        vault.hashicorp.com/agent-inject-secret-cloudflare.env: "kv/data/production/cloudflare"
-        vault.hashicorp.com/agent-inject-template-cloudflare.env: |
+        vault.hashicorp.com/agent-inject-secret-cloudflare-token: "kv/data/production/cloudflare"
+        vault.hashicorp.com/agent-inject-template-cloudflare-token: |
           {{- with secret "kv/data/production/cloudflare" -}}
-          TUNNEL_TOKEN={{ .Data.data.TUNNEL_TOKEN }}
+          {{ .Data.data.TUNNEL_TOKEN }}
           {{- end }}
     spec:
       serviceAccountName: cloudflared
@@ -30,13 +30,14 @@ spec:
           image: cloudflare/cloudflared:2026.2.0
           imagePullPolicy: IfNotPresent
           command:
-            - /bin/sh
-            - -ec
-          args:
-            - |
-              . /run/secrets/cloudflare.env
-              : "${TUNNEL_TOKEN:?Missing TUNNEL_TOKEN}"
-              exec cloudflared tunnel --no-autoupdate --metrics 0.0.0.0:2000 run --token "$TUNNEL_TOKEN"
+            - cloudflared
+            - tunnel
+            - --no-autoupdate
+            - --metrics
+            - 0.0.0.0:2000
+            - run
+            - --token-file
+            - /run/secrets/cloudflare-token
           ports:
             - name: metrics
               containerPort: 2000
