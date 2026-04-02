@@ -10,14 +10,15 @@ It is intentionally separate from the `opensis` workload namespace.
 - Traefik remains the in-cluster ingress controller for the public path
 - `cloudflared` runs inside Kubernetes and connects outward to Cloudflare
 - the tunnel token is stored in Vault instead of a plain Kubernetes Secret
-- the tunnel should target the Traefik Service inside the cluster, not the app pod directly
+- in this single-node lab, the tunnel should target Traefik through its NodePort instead of the ClusterIP Service
+- the tunnel should never point directly at the app pod
 
 ## Files
 
 - `namespace.yaml`: dedicated `cloudflare` namespace
 - `serviceaccount.yaml`: service account for `cloudflared`
 - `deployment.yaml`: Vault-injected `cloudflared` Deployment with readiness/liveness probes
-- `networkpolicy.yaml`: egress only to Vault, DNS, and outbound HTTPS
+- `networkpolicy.yaml`: egress only to Vault, DNS, Cloudflare edge, Traefik, and the Traefik NodePort used in this single-node lab
 - `secret.example.yaml`: legacy fallback example only; Vault is the preferred path
 
 ## Cloudflare Dashboard Setup
@@ -25,9 +26,16 @@ It is intentionally separate from the `opensis` workload namespace.
 Create a named tunnel in the Cloudflare dashboard and add this public hostname:
 
 - hostname: `opensis.raysosglobal.com`
-- service: `http://traefik.traefik.svc.cluster.local`
+- service: `http://<NODE_IP>:30621`
 
-That keeps Cloudflare pointed at the in-cluster Traefik Service instead of a specific app pod.
+Use the Kubernetes node IP for `<NODE_IP>`. In this single-node k3s lab, `cloudflared` could not reliably reach the Traefik ClusterIP Service, but it could reach Traefik cleanly through the NodePort. You can discover the values with:
+
+```bash
+kubectl get nodes -o wide
+kubectl get svc -n traefik
+```
+
+That keeps Cloudflare pointed at Traefik instead of a specific app pod while matching the network path that actually works in this lab.
 
 ## Vault Setup
 
@@ -88,6 +96,6 @@ Do not expect public traffic to work until all of these are true:
 
 - Traefik is installed
 - the production ingress is intentionally bound to `traefik`
-- the Cloudflare dashboard hostname is mapped to the Traefik Service
+- the Cloudflare dashboard hostname is mapped to the Traefik NodePort origin for this single-node lab
 - Vault contains the real tunnel token at `kv/production/cloudflare`
 - the `opensis-cloudflare` pod is healthy in the `cloudflare` namespace

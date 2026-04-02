@@ -1743,9 +1743,18 @@ Cloudflare dashboard setup for the live cutover:
 1. create a named tunnel in Cloudflare
 2. add the public hostname:
    - `opensis.raysosglobal.com`
-3. point that hostname at the in-cluster Traefik service:
-   - `http://traefik.traefik.svc.cluster.local`
+3. point that hostname at the Traefik NodePort origin for this single-node lab:
+   - `http://<NODE_IP>:30621`
 4. copy the generated tunnel token
+
+Single-node lab finding:
+
+- the Cloudflare tunnel was initially pointed at `http://traefik.traefik.svc.cluster.local`
+- even after the tunnel itself became healthy, `cloudflared` still logged `dial tcp 10.43.169.69:80: connect: connection refused`
+- direct validation showed Traefik was healthy through its NodePort instead:
+  - `curl -A 'Mozilla/5.0' -H 'Host: opensis.raysosglobal.com' http://127.0.0.1:30621/` returned `200`
+- for this single-node k3s setup, the practical public-edge origin is therefore Traefik's NodePort, not the ClusterIP service
+- `k8s/platform/cloudflare/networkpolicy.yaml` was widened to allow outbound TCP `30621` for that origin path
 
 Seed the live token in Vault:
 
