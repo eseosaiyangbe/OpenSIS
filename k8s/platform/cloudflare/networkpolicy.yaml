@@ -52,3 +52,10 @@ spec:
       ports:
         - protocol: TCP
           port: 30621
+    - to:
+        - podSelector:
+            matchLabels:
+              app: opensis-origin-adapter
+      ports:
+        - protocol: TCP
+          port: 8080
