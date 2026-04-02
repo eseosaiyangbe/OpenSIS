@@ -1449,6 +1449,8 @@ The expected steady state is:
 
 That result is intentional. `dev` is now fully GitOps-managed, while `prod` is only registered in Argo CD until the production overlay is shaped more deliberately.
 
+One operational lesson from this phase is worth making explicit: once GitOps is active, the remote Git repository is the real source of truth. A local manifest fix is not durable until it is committed and pushed. During validation, the UI regression reappeared because Argo CD reconciled an older GitHub revision that did not yet contain the hardened `opensis-ui` startup command, `Data.php` generation, and browser-like probe headers. The durable recovery was to commit the fix, push it to GitHub, and refresh the Argo CD Application so the live cluster converged back to the correct state.
+
 ## Phase 21: Shape The Prod Overlay Deliberately
 
 With `dev` now GitOps-managed and aligned to the normalized baseline, the `prod` overlay was tightened so it reflects intentional production behavior instead of just a lightly modified copy of `dev`.
@@ -1514,9 +1516,301 @@ The expected production shape is now:
 - the production blackbox HTTP probe checks `https://opensis.raysosglobal.com`.
 - Prometheus and Grafana have production-sized persistence and resources rather than inheriting only the base defaults.
 
+## Phase 22A: Prepare Cloudflare And Traefik Edge Publication
+
+To move the stack toward real public reachability, the next milestone prepared Cloudflare Tunnel and Traefik in the repo without breaking the currently healthy `nginx`-based dev ingress.
+
+The main repo additions in this phase are:
+
+- [k8s/platform/cloudflare/kustomization.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/platform/cloudflare/kustomization.yaml)
+- [k8s/platform/cloudflare/namespace.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/platform/cloudflare/namespace.yaml)
+- [k8s/platform/cloudflare/serviceaccount.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/platform/cloudflare/serviceaccount.yaml)
+- [k8s/platform/cloudflare/deployment.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/platform/cloudflare/deployment.yaml)
+- [k8s/platform/cloudflare/networkpolicy.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/platform/cloudflare/networkpolicy.yaml)
+- [k8s/platform/cloudflare/secret.example.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/platform/cloudflare/secret.example.yaml)
+- [k8s/platform/cloudflare/README.md](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/platform/cloudflare/README.md)
+- [k8s/bootstrap/traefik/values.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/bootstrap/traefik/values.yaml)
+- [k8s/bootstrap/traefik/README.md](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/bootstrap/traefik/README.md)
+
+The cluster validation before adding those files confirmed that the current live cluster still only had the `nginx` ingress class:
+
+```bash
+kubectl get ingressclass
+kubectl get svc -A | grep -i traefik
+```
+
+That mattered because the repo now wants Traefik for the future public edge path, but a direct cutover would have broken the currently working `opensis-dev` route.
+
+The Cloudflare layer was therefore prepared as a separate, renderable namespace-scoped component first:
+
+```bash
+kubectl kustomize k8s/platform/cloudflare
+```
+
+The intended edge design is now explicit:
+
+- Cloudflare provides the public edge for `opensis.raysosglobal.com`
+- `cloudflared` lives in its own `cloudflare` namespace
+- Traefik remains the intended in-cluster ingress controller
+- the tunnel should target Traefik only after Traefik is installed and the app ingress has been deliberately cut over
+
+The safe cutoff point for this phase is also explicit:
+
+- do not point public Cloudflare traffic at the cluster yet
+- do not switch the working application ingress away from `nginx` yet
+- first install Traefik, verify the `traefik` ingress class, then create the Cloudflare tunnel token Secret and apply the `cloudflared` Deployment
+
+## Phase 22B: Install Traefik And Validate Ingress Cutover
+
+This phase moved the cluster from `nginx`-only ingress toward a Traefik-based edge path that we can later place behind Cloudflare Tunnel.
+
+What changed in the repo:
+
+- `k8s/base/opensis-ui/ingress.yaml`
+  - changed `ingressClassName` from `nginx` to `traefik`
+- `k8s/base/networking/opensis-ui-policy.yaml`
+  - temporarily allowed ingress from both the `ingress-nginx` and `traefik` namespaces during transition
+- `k8s/bootstrap/traefik/values.yaml`
+  - installed Traefik with one replica
+  - later changed the Traefik Service from `ClusterIP` to `LoadBalancer` so the single-node lab could expose NodePorts for validation
+
+Live install and validation commands:
+
+```bash
+kubectl get ingressclass
+kubectl get ingress -A
+kubectl get svc -A | grep -i traefik
+```
+
+Create the Traefik namespace and install the chart:
+
+```bash
+kubectl create namespace traefik
+helm repo add traefik https://traefik.github.io/charts
+helm repo update
+KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade --install traefik traefik/traefik -n traefik -f k8s/bootstrap/traefik/values.yaml
+```
+
+Verify the controller and ingress class:
+
+```bash
+kubectl get pods -n traefik
+kubectl get svc -n traefik
+kubectl get ingressclass
+kubectl describe ingressclass traefik
+```
+
+Commit and push the ingress class cutover:
+
+```bash
+git add k8s/base/opensis-ui/ingress.yaml
+git commit -m "Switch openSIS ingress to Traefik"
+git push origin main
+kubectl annotate application opensis-dev -n argocd argocd.argoproj.io/refresh=hard --overwrite
+kubectl get applications.argoproj.io -n argocd
+kubectl get ingress -n opensis-dev opensis-ui -o yaml
+```
+
+When the old ingress path stayed in place, fix the app-side policy to allow Traefik:
+
+```bash
+git add k8s/base/networking/opensis-ui-policy.yaml
+git commit -m "Allow Traefik during ingress transition"
+git push origin main
+kubectl annotate application opensis-dev -n argocd argocd.argoproj.io/refresh=hard --overwrite
+kubectl delete ingress -n opensis-dev opensis-ui
+kubectl get ingress -n opensis-dev opensis-ui -o yaml
+kubectl describe ingress -n opensis-dev opensis-ui
+```
+
+When Traefik initially returned `404`, switch the Traefik Service exposure mode and reapply:
+
+```bash
+KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm upgrade --install traefik traefik/traefik -n traefik -f k8s/bootstrap/traefik/values.yaml
+kubectl get svc -n traefik -o wide
+kubectl logs -n traefik deploy/traefik --since=10m
+kubectl get nodes -o wide
+```
+
+Validate that Traefik is actually routing the application:
+
+```bash
+curl -k -H 'Host: opensis.dev.local' https://127.0.0.1:32200 -I
+curl -H 'Host: opensis.dev.local' http://127.0.0.1:30621 -I
+```
+
+Observed result:
+
+- the earlier Traefik `404` disappeared
+- the NodePort validations reached the `opensis-ui` backend
+- the backend returned `500`, not `404`, which confirmed that Traefik was routing correctly and the response was now coming from the application itself
+- this matched previous openSIS behavior where non-browser-style requests can still behave poorly even when the app is fundamentally healthy
+
+Operational conclusion:
+
+- Traefik is installed and active in the cluster
+- the `opensis-dev` ingress now belongs to the `traefik` ingress class
+- Traefik is a valid next hop for Cloudflare Tunnel
+- the local browser edge path on standard `80/443` still needs deliberate finalization, but the in-cluster routing milestone is complete
+
+## Phase 22C: Roll Back opensis-dev To nginx While Keeping Traefik For Public Edge Planning
+
+After validating that Traefik could route traffic internally, the local browser path for `opensis.dev.local` still became awkward in this single-node lab. The app remained healthy, but local access on standard `80/443` was more stable through the existing `nginx` ingress controller.
+
+Decision:
+
+- keep `opensis-dev` on `nginx` for reliable day-to-day local use
+- keep Traefik installed for the future public edge path with Cloudflare
+- treat the dual-controller state as temporary transition architecture, not the final steady state
+
+Rollback steps:
+
+```bash
+git add k8s/base/opensis-ui/ingress.yaml
+git commit -m "Roll back dev ingress to nginx"
+git push origin main
+
+kubectl annotate application opensis-dev -n argocd argocd.argoproj.io/refresh=hard --overwrite
+kubectl get applications.argoproj.io -n argocd
+kubectl get ingress -n opensis-dev opensis-ui -o yaml
+curl -k -A 'Mozilla/5.0' -I https://opensis.dev.local
+```
+
+Observed result:
+
+- `opensis-dev` returned to `Synced` and `Healthy`
+- the live ingress switched back to:
+  - `ingressClassName: nginx`
+- browser-style validation returned:
+  - `HTTP/2 200`
+- the openSIS UI became accessible again through the normal local hostname
+
+Operational conclusion:
+
+- local/dev ingress stays on `nginx` for now
+- Traefik remains installed and validated as a future next hop for Cloudflare Tunnel
+- once the public path is proven, the stack should be simplified back to a single ingress controller
+
+This captures the lesson cleanly:
+
+- Traefik validation succeeded
+- local UX mattered more than forcing the cutover early
+- `nginx` is now the local stabilizer
+- Traefik is still the public-edge candidate
+
+## Phase 22D: Prepare Cloudflare Tunnel For GitOps-Managed Public Edge
+
+This phase made the Cloudflare edge path repo-driven and ready for live activation with Vault managing the tunnel token instead of a plain Kubernetes Secret.
+
+What changed in the repo:
+
+- `k8s/platform/cloudflare/deployment.yaml`
+  - now uses Vault Agent injection to render `cloudflare.env`
+  - keeps `cloudflared` readiness and liveness probes through the built-in metrics endpoint on port `2000`
+- `k8s/platform/cloudflare/networkpolicy.yaml`
+  - now allows egress to Vault on port `8200` in addition to DNS and outbound HTTPS
+- `k8s/platform/cloudflare/README.md`
+  - now documents the Cloudflare dashboard hostname mapping and the Vault-first activation flow
+- `k8s/bootstrap/vault/opensis-cloudflare-policy.hcl`
+  - added the Vault policy for reading `kv/data/production/cloudflare`
+- `k8s/gitops/argocd/cloudflare-application.yaml`
+  - added a dedicated Argo CD application for the `cloudflare` namespace component
+- `k8s/gitops/argocd/kustomization.yaml`
+  - now includes the Cloudflare application
+- `k8s/gitops/argocd/project.yaml`
+  - now allows the `cloudflare` namespace as a valid deployment destination
+- `k8s/overlays/prod/opensis-ui-ingress-patch.yaml`
+  - now explicitly binds the production ingress to `ingressClassName: traefik`
+
+Render validation commands:
+
+```bash
+kubectl kustomize k8s/platform/cloudflare
+kubectl kustomize k8s/gitops/argocd
+kubectl kustomize k8s/overlays/prod | grep -nE 'kind: Ingress|ingressClassName: traefik|opensis.raysosglobal.com'
+```
+
+Expected result:
+
+- the `cloudflare` platform component renders cleanly
+- the Argo CD project and applications render cleanly, including `opensis-cloudflare`
+- the production ingress renders with:
+  - `ingressClassName: traefik`
+  - host `opensis.raysosglobal.com`
+
+Cloudflare dashboard setup for the live cutover:
+
+1. create a named tunnel in Cloudflare
+2. add the public hostname:
+   - `opensis.raysosglobal.com`
+3. point that hostname at the in-cluster Traefik service:
+   - `http://traefik.traefik.svc.cluster.local`
+4. copy the generated tunnel token
+
+Seed the live token in Vault:
+
+```bash
+kubectl exec -it -n vault vault-0 -- /bin/sh
+```
+
+Inside Vault:
+
+```bash
+vault kv put kv/production/cloudflare   TUNNEL_TOKEN='replace-with-your-cloudflare-tunnel-token'
+```
+
+Load the Cloudflare policy and role into Vault:
+
+```bash
+kubectl cp k8s/bootstrap/vault/opensis-cloudflare-policy.hcl vault/vault-0:/tmp/opensis-cloudflare-policy.hcl
+kubectl exec -it -n vault vault-0 -- /bin/sh
+```
+
+Inside Vault:
+
+```bash
+vault policy write opensis-cloudflare /tmp/opensis-cloudflare-policy.hcl
+
+vault write auth/kubernetes/role/opensis-cloudflare   bound_service_account_names=cloudflared   bound_service_account_namespaces=cloudflare   policies=opensis-cloudflare   ttl=1h
+```
+
+Apply or refresh the GitOps objects:
+
+```bash
+kubectl apply -k k8s/gitops/argocd
+kubectl annotate application opensis-cloudflare -n argocd argocd.argoproj.io/refresh=hard --overwrite
+kubectl get applications.argoproj.io -n argocd
+```
+
+Validate the Cloudflare namespace component:
+
+```bash
+kubectl get all -n cloudflare
+kubectl logs -n cloudflare deploy/cloudflared --tail=100
+```
+
+Operational conclusion:
+
+- the repo is now ready for a GitOps-managed Cloudflare Tunnel component in its own namespace
+- Vault, not a plain Kubernetes Secret, is now the source of truth for the tunnel token
+- the public application path is deliberately shaped as:
+  - Cloudflare
+  - `cloudflared`
+  - Traefik
+  - `opensis-ui`
+- the production ingress is now explicitly Traefik-bound for that public path
+- the only remaining live dependencies for activation are the real Cloudflare tunnel token, the Vault role/policy setup, and the dashboard hostname mapping
+
+
 ## Updated Remaining Roadmap
 
-The roadmap is now functionally complete for this learning stack. From here, the next steps are no longer foundational milestones but operational polish, hardening, and real production rollout work.
+The roadmap is now in an edge-publication and hardening phase. The next live milestone is:
+
+1. seed the real Cloudflare tunnel token in Vault and verify `opensis-cloudflare` becomes healthy
+2. validate external reachability of `opensis.raysosglobal.com` through Cloudflare Tunnel and Traefik
+3. continue with restore testing
+4. harden Vault TLS
+5. revisit the later Vault Raft/auto-unseal work
 
 ## Notes For Later Production
 

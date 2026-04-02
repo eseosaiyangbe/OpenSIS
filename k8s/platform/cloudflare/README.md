@@ -1,40 +1,93 @@
 # Cloudflare Tunnel
 
-This layer prepares a dedicated `cloudflare` namespace for `cloudflared`.
+This layer prepares a dedicated `cloudflare` namespace for `cloudflared` and is intended to be managed through Argo CD.
 
 It is intentionally separate from the `opensis` workload namespace.
 
 ## Design Intent
 
 - Cloudflare provides the public edge for `opensis.raysosglobal.com`
-- Traefik remains the in-cluster ingress controller
+- Traefik remains the in-cluster ingress controller for the public path
 - `cloudflared` runs inside Kubernetes and connects outward to Cloudflare
-- the tunnel should target Traefik once Traefik is installed and cut over
+- the tunnel token is stored in Vault instead of a plain Kubernetes Secret
+- the tunnel should target the Traefik Service inside the cluster, not the app pod directly
 
 ## Files
 
 - `namespace.yaml`: dedicated `cloudflare` namespace
 - `serviceaccount.yaml`: service account for `cloudflared`
-- `deployment.yaml`: token-based `cloudflared` Deployment
-- `networkpolicy.yaml`: egress only to DNS and outbound HTTPS
-- `secret.example.yaml`: example tunnel-token Secret
+- `deployment.yaml`: Vault-injected `cloudflared` Deployment with readiness/liveness probes
+- `networkpolicy.yaml`: egress only to Vault, DNS, and outbound HTTPS
+- `secret.example.yaml`: legacy fallback example only; Vault is the preferred path
 
-## Prepare The Tunnel Token Secret
+## Cloudflare Dashboard Setup
 
-Create the real Secret from the example after you create a named tunnel in Cloudflare:
+Create a named tunnel in the Cloudflare dashboard and add this public hostname:
+
+- hostname: `opensis.raysosglobal.com`
+- service: `http://traefik.traefik.svc.cluster.local`
+
+That keeps Cloudflare pointed at the in-cluster Traefik Service instead of a specific app pod.
+
+## Vault Setup
+
+Seed the tunnel token in Vault:
 
 ```bash
-cp k8s/platform/cloudflare/secret.example.yaml /tmp/cloudflared-tunnel.yaml
-# edit /tmp/cloudflared-tunnel.yaml and replace the token value
-kubectl apply -f /tmp/cloudflared-tunnel.yaml
+kubectl exec -it -n vault vault-0 -- /bin/sh
 ```
 
-## Apply The Namespace And Deployment
+Inside Vault:
 
 ```bash
-kubectl apply -k k8s/platform/cloudflare
+vault kv put kv/production/cloudflare \
+  TUNNEL_TOKEN='replace-with-your-cloudflare-tunnel-token'
+```
+
+Load the policy into Vault:
+
+```bash
+kubectl cp k8s/bootstrap/vault/opensis-cloudflare-policy.hcl vault/vault-0:/tmp/opensis-cloudflare-policy.hcl
+kubectl exec -it -n vault vault-0 -- /bin/sh
+```
+
+Inside Vault:
+
+```bash
+vault policy write opensis-cloudflare /tmp/opensis-cloudflare-policy.hcl
+
+vault write auth/kubernetes/role/opensis-cloudflare \
+  bound_service_account_names=cloudflared \
+  bound_service_account_namespaces=cloudflare \
+  policies=opensis-cloudflare \
+  ttl=1h
+```
+
+## Apply Through GitOps
+
+The namespace-scoped platform component is tracked by the Argo CD application `opensis-cloudflare`.
+
+Apply or refresh the Argo CD objects:
+
+```bash
+kubectl apply -k k8s/gitops/argocd
+kubectl annotate application opensis-cloudflare -n argocd argocd.argoproj.io/refresh=hard --overwrite
+```
+
+Then validate:
+
+```bash
+kubectl get applications.argoproj.io -n argocd
+kubectl get all -n cloudflare
+kubectl logs -n cloudflare deploy/cloudflared --tail=100
 ```
 
 ## Safe Cutover Note
 
-Do not route public traffic to the tunnel yet unless Traefik is installed and the application ingress has been intentionally cut over from the current `nginx` ingress class during the live cutover.
+Do not expect public traffic to work until all of these are true:
+
+- Traefik is installed
+- the production ingress is intentionally bound to `traefik`
+- the Cloudflare dashboard hostname is mapped to the Traefik Service
+- Vault contains the real tunnel token at `kv/production/cloudflare`
+- the `opensis-cloudflare` pod is healthy in the `cloudflare` namespace
