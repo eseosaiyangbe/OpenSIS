@@ -43,10 +43,10 @@ The prod overlay is intended as the production-facing shape.
 It currently changes:
 
 - namespace to `opensis`
-- app replicas to `2`
+- app replicas to `1`
 - ingress host to `opensis.raysosglobal.com`
 - issuer to `letsencrypt-prod`
-- app image pinned through Kustomize to the immutable production tag `docker.io/eseosaiyangbe/opensis-ui:git-c136761`
+- app image pinned through Kustomize to the immutable production tag `docker.io/eseosaiyangbe/opensis-ui:git-244d863`
 - production Vault roles and secret paths
 - public ingress bound to `traefik`
 - prod-specific kube-state-metrics RBAC names so Argo CD does not fight `dev` for cluster-scoped ownership
@@ -63,6 +63,8 @@ Current public-edge note:
 - that adapter exists because openSIS is sensitive to raw non-browser-style origin requests
 - the adapter normalizes those requests before they reach `opensis-ui`
 - the base `opensis-ui` NetworkPolicy explicitly allows the `cloudflare` namespace so the adapter can reach the app
+- the adapter forwards `X-Forwarded-Proto https` so the public app sees the correct original scheme
+- prod intentionally stays at one UI replica until session storage is moved off local PHP file sessions
 - the public login page now includes a visible demo panel for the shared demo user:
   - `Username: demo`
   - `Password: demo@123`
@@ -88,7 +90,7 @@ curl -k -I https://opensis.raysosglobal.com
 Current steady-state expectation:
 
 - `opensis-prod` should be `Synced` and `Healthy` in Argo CD
-- both `opensis-ui` pods in `opensis` should be on `docker.io/eseosaiyangbe/opensis-ui:git-c136761`
+- the single `opensis-ui` pod in `opensis` should be on `docker.io/eseosaiyangbe/opensis-ui:git-244d863`
 - `opensis-db-backup-storage` should be `Bound` after the first backup run
 
 Important installer note:

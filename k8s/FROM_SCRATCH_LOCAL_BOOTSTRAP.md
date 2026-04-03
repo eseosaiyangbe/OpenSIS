@@ -1908,6 +1908,69 @@ Lesson learned:
 - in single-node `local-path` setups, a backup PVC with `WaitForFirstConsumer` may leave an otherwise healthy application showing `Progressing` until the first backup job runs
 - once the first consumer mounts the claim, the PVC binds and Argo CD can report the application as fully healthy
 
+## Phase 22G: Stabilize Prod Login Sessions And Refresh Behavior
+
+After the installer route was blocked successfully in production, the public login flow still behaved badly:
+
+- login sometimes required multiple attempts
+- the first post-login page could appear blank
+- refreshing after a successful login could immediately return the user to the login page
+
+Root cause:
+
+- the `prod` overlay had been scaled to `replicas: 2` for `opensis-ui`
+- PHP sessions were still using local file-backed storage inside each container
+- because session data was not shared between pods, a refresh or follow-up request could hit the other pod and lose the authenticated session
+
+Representative live checks that confirmed this:
+
+```bash
+kubectl get deployment opensis-ui -n opensis -o yaml | sed -n '/replicas:/,/strategy:/p'
+kubectl get pods -n opensis -l app=opensis-ui -o wide
+kubectl exec -n opensis deploy/opensis-ui -- sh -lc 'php -i | grep -E "session.save_handler|session.save_path|session.cookie_secure|session.cookie_samesite|session.use_strict_mode"'
+```
+
+The important findings were:
+
+- `replicas: 2` in the live prod deployment
+- `session.save_handler => files`
+- no shared Redis or other centralized PHP session backend
+
+Immediate remediation:
+
+1. reduce `prod` `opensis-ui` replicas back to `1`
+2. correct the Cloudflare origin adapter header so it forwards:
+   - `X-Forwarded-Proto https`
+3. refresh both `opensis-prod` and `opensis-cloudflare` through Argo CD
+4. confirm only one `opensis-ui` pod remains in `opensis`
+
+Representative rollout commands:
+
+```bash
+kubectl annotate application opensis-prod -n argocd argocd.argoproj.io/refresh=hard --overwrite
+kubectl annotate application opensis-cloudflare -n argocd argocd.argoproj.io/refresh=hard --overwrite
+
+kubectl patch application opensis-prod -n argocd --type merge -p '{"operation":{"sync":{"prune":false,"syncOptions":["CreateNamespace=true"],"syncStrategy":{"apply":{}}}}}'
+kubectl patch application opensis-cloudflare -n argocd --type merge -p '{"operation":{"sync":{"prune":false,"syncOptions":["CreateNamespace=true"],"syncStrategy":{"apply":{}}}}}'
+
+kubectl rollout status deployment/opensis-ui -n opensis
+kubectl rollout status deployment/opensis-origin-adapter -n cloudflare
+kubectl get deployment opensis-ui -n opensis -o jsonpath='{.spec.replicas}{" desired / "}{.status.readyReplicas}{" ready\n"}'
+kubectl get pods -n opensis -l app=opensis-ui -o wide
+```
+
+Validated outcome:
+
+- `opensis-ui` in `prod` now runs as `1 desired / 1 ready`
+- the public login flow became stable again
+- refresh no longer immediately logs the user out
+- the session-loss issue was therefore environmental, not a credential or database problem
+
+Operational lesson:
+
+- this openSIS deployment should remain single-replica until PHP sessions are moved to shared storage such as Redis
+- horizontal scaling without shared session state causes intermittent login failures and logout-on-refresh behavior
+
 ## Environment Summary
 
 Current environment intent is now:
@@ -1916,8 +1979,10 @@ Current environment intent is now:
 - `dev` stays on `nginx` ingress for predictable browser access
 - `dev` tracks the CI-backed image stream `docker.io/eseosaiyangbe/opensis-ui:main`
 - `prod` is the public-facing environment at `https://opensis.raysosglobal.com`
-- `prod` is pinned to the immutable image `docker.io/eseosaiyangbe/opensis-ui:git-c136761`
+- `prod` is pinned to the immutable image `docker.io/eseosaiyangbe/opensis-ui:git-244d863`
 - `prod` uses Traefik plus Cloudflare Tunnel, with the in-cluster origin adapter normalizing public requests before they reach openSIS
+- the origin adapter now forwards `X-Forwarded-Proto https` so the app sees the correct public scheme
+- `prod` intentionally runs a single `opensis-ui` replica until session storage is moved off local PHP file sessions
 - `prod` now uses unique kube-state-metrics cluster-scoped RBAC names so Argo CD can keep `dev` and `prod` synced independently
 
 Promotion rule:
