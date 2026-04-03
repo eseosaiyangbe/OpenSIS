@@ -39,4 +39,4 @@ patches:
         value: opensis-prod-kube-state-metrics
 images:
   - name: docker.io/eseosaiyangbe/opensis-ui
-    newTag: git-b20de29
+    newTag: git-244d863
