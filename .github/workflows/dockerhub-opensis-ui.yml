@@ -8,6 +8,11 @@ on:
       - develop
     tags:
       - "v*"
+    paths:
+      - 'Dockerfile'
+      - 'app/**'
+      - 'docker/**'
+      - 'scripts/docker-entrypoint-vault.sh'
   workflow_dispatch:
     inputs:
       publish_dev_alias:
