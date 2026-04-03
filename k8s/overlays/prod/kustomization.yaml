@@ -8,6 +8,7 @@ patches:
   - path: opensis-ui-deployment-patch.yaml
   - path: opensis-db-statefulset-patch.yaml
   - path: opensis-ui-ingress-patch.yaml
+  - path: opensis-ui-networkpolicy-patch.yaml
   - path: opensis-db-backup-cronjob-patch.yaml
   - path: opensis-db-backup-pvc-patch.yaml
   - path: prometheus-configmap-patch.yaml
