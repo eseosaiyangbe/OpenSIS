@@ -35,7 +35,7 @@ $data_file = dirname(__DIR__) . '/Data.php';
 // In production, treat the presence of Data.php as an installed instance and
 // keep the installer route from remaining publicly reachable.
 if (in_array(strtolower($app_env), array('prod', 'production'), true) && file_exists($data_file)) {
-    header('Location: ../index.php');
+    header('Location: /index.php');
     exit;
 }
 ?>
