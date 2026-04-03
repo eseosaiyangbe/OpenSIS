@@ -167,6 +167,13 @@ require_once('functions/langFnc.php');
                                 <div class="form-group">
                                     <input type="password" class="form-control password" placeholder="<?=_enterPassword?>" id="password" name='PASSWORD' AUTOCOMPLETE='off' value="">
                                 </div>
+                                <div class="form-group">
+                                    <div style="border: 1px solid #d9edf7; background: #f4fbff; color: #245269; border-radius: 6px; padding: 12px 14px; font-size: 13px; line-height: 1.5;">
+                                        <strong>Demo Credentials</strong><br>
+                                        Username: <code>demo</code><br>
+                                        Password: <code>demo@123</code>
+                                    </div>
+                                </div>
                                 <div class="language-selection">
                                     <i class="icon-earth"></i>
                                         <select class="select-search" name="language" id="language" onchange="window.location = 'index.php?language='+this.value">
