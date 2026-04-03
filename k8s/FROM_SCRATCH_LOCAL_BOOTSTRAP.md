@@ -1822,6 +1822,46 @@ Operational conclusion:
 - the only remaining live dependencies for activation are the real Cloudflare tunnel token, the Vault role/policy setup, and the dashboard hostname mapping
 
 
+## Phase 22E: Reconcile Prod With GitOps And Stabilize The Public Path
+
+After the public path first came up, the live `opensis` namespace still carried a lot of hand-applied recovery state. That made `opensis-prod` stay `OutOfSync`, and the public URL became fragile again during reinstall and promotion work.
+
+What had to be corrected:
+
+- the successful installer run had written the application schema into a database named `Raymond`, while the runtime convention and generated `Data.php` still pointed to `opensis`
+- the result was that `/install/index.php` returned `200`, but `/` and `/index.php` returned `500`
+- after the full `prod` overlay was applied, the `opensis-ui` NetworkPolicy no longer allowed ingress from the `cloudflare` namespace
+- that blocked `opensis-origin-adapter` from reaching `opensis-ui`, which made Cloudflare return `502`
+- `opensis-dev` and `opensis-prod` were also both trying to own the same cluster-scoped kube-state-metrics RBAC objects, which kept `opensis-prod` in drift even after most resources were reconciled
+
+Fixes that made the public path and GitOps state line up again:
+
+1. move the installed schema back into the canonical `opensis` database
+2. restart `opensis-ui` and verify `/` returns `200` again
+3. update the base `opensis-ui` NetworkPolicy to allow the `cloudflare` namespace
+4. restart `opensis-origin-adapter` and verify it can proxy to `opensis-ui` again
+5. give the `prod` overlay its own kube-state-metrics cluster-scoped RBAC names:
+   - `opensis-prod-kube-state-metrics`
+6. trigger a real Argo CD sync for `opensis-prod`, not just a refresh
+
+Representative validation commands:
+
+```bash
+kubectl get applications.argoproj.io -n argocd
+kubectl get deploy,pods,svc,ingress -n opensis -o wide
+kubectl get deploy,pods -n cloudflare -o wide
+kubectl exec -n opensis deploy/opensis-ui -- sh -lc 'curl -s -o /dev/null -w "%{http_code}\n" -A "Mozilla/5.0" http://127.0.0.1/'
+kubectl exec -n cloudflare deploy/opensis-origin-adapter -- sh -lc 'wget -qSO- http://127.0.0.1:8080/ >/dev/null'
+curl -k -I https://opensis.raysosglobal.com
+```
+
+Final outcome of the reconciliation:
+
+- `opensis-prod` moved from `OutOfSync` to `Synced`
+- the public URL `https://opensis.raysosglobal.com` returned `HTTP/2 200` again
+- the current immutable prod image remained `docker.io/eseosaiyangbe/opensis-ui:git-efd83e6`
+- `dev` and `prod` no longer compete for the same kube-state-metrics cluster-scoped RBAC objects
+
 ## Environment Summary
 
 Current environment intent is now:
@@ -1832,6 +1872,7 @@ Current environment intent is now:
 - `prod` is the public-facing environment at `https://opensis.raysosglobal.com`
 - `prod` is pinned to the immutable image `docker.io/eseosaiyangbe/opensis-ui:git-efd83e6`
 - `prod` uses Traefik plus Cloudflare Tunnel, with the in-cluster origin adapter normalizing public requests before they reach openSIS
+- `prod` now uses unique kube-state-metrics cluster-scoped RBAC names so Argo CD can keep `dev` and `prod` synced independently
 
 Promotion rule:
 
@@ -1841,13 +1882,12 @@ Promotion rule:
 
 ## Updated Remaining Roadmap
 
-The roadmap is now in an edge-publication and hardening phase. The next live milestone is:
+The roadmap is now in a post-publication hardening phase. The next live milestone is:
 
-1. seed the real Cloudflare tunnel token in Vault and verify `opensis-cloudflare` becomes healthy
-2. validate external reachability of `opensis.raysosglobal.com` through Cloudflare Tunnel and Traefik
-3. continue with restore testing
-4. harden Vault TLS
-5. revisit the later Vault Raft/auto-unseal work
+1. continue with restore testing
+2. harden Vault TLS
+3. revisit the later Vault Raft/auto-unseal work
+4. decide whether to keep the origin adapter permanently or fold that normalization into a more deliberate edge layer later
 
 ## Notes For Later Production
 

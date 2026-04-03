@@ -49,6 +49,7 @@ It currently changes:
 - app image pinned through Kustomize to the immutable production tag `docker.io/eseosaiyangbe/opensis-ui:git-efd83e6`
 - production Vault roles and secret paths
 - public ingress bound to `traefik`
+- prod-specific kube-state-metrics RBAC names so Argo CD does not fight `dev` for cluster-scoped ownership
 
 Current promotion rule:
 
@@ -61,6 +62,7 @@ Current public-edge note:
 - the working public path uses Cloudflare Tunnel plus the internal `opensis-origin-adapter`
 - that adapter exists because openSIS is sensitive to raw non-browser-style origin requests
 - the adapter normalizes those requests before they reach `opensis-ui`
+- the base `opensis-ui` NetworkPolicy explicitly allows the `cloudflare` namespace so the adapter can reach the app
 
 Apply it with:
 
@@ -71,8 +73,14 @@ kubectl apply -k k8s/overlays/prod
 Recommended verification after a prod image promotion:
 
 ```bash
-kubectl kustomize k8s/overlays/prod | rg 'image:|ingressClassName:|opensis.raysosglobal.com'
+kubectl kustomize k8s/overlays/prod | rg 'image:|ingressClassName:|opensis.raysosglobal.com|opensis-prod-kube-state-metrics'
 kubectl get deploy,pods,svc,ingress -n opensis -o wide
 kubectl logs -n opensis deploy/opensis-ui --since=5m
+kubectl get applications.argoproj.io -n argocd
 curl -k -I https://opensis.raysosglobal.com
 ```
+
+Important installer note:
+
+- when reinstalling openSIS, keep the selected database name aligned with the runtime convention `opensis`
+- if the installer writes the schema into a different database name, the app can complete install but still return `500` on `/` and `/index.php`
