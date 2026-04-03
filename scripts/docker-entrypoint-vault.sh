@@ -36,6 +36,25 @@ set +a
 : "${MYSQL_USER:?Missing MYSQL_USER}"
 : "${MYSQL_PASSWORD:?Missing MYSQL_PASSWORD}"
 
+SESSION_CONF_FILE="${PHP_SESSION_CONF_FILE:-/usr/local/etc/php/conf.d/zz-session-runtime.ini}"
+: > "$SESSION_CONF_FILE"
+
+if [ -n "${PHP_SESSION_SAVE_HANDLER:-}" ]; then
+  echo "session.save_handler = ${PHP_SESSION_SAVE_HANDLER}" >> "$SESSION_CONF_FILE"
+fi
+
+if [ -n "${PHP_SESSION_SAVE_PATH:-}" ]; then
+  echo "session.save_path = \"${PHP_SESSION_SAVE_PATH}\"" >> "$SESSION_CONF_FILE"
+fi
+
+if [ -n "${PHP_SESSION_COOKIE_SECURE:-}" ]; then
+  echo "session.cookie_secure = ${PHP_SESSION_COOKIE_SECURE}" >> "$SESSION_CONF_FILE"
+fi
+
+if [ -n "${PHP_SESSION_COOKIE_SAMESITE:-}" ]; then
+  echo "session.cookie_samesite = ${PHP_SESSION_COOKIE_SAMESITE}" >> "$SESSION_CONF_FILE"
+fi
+
 echo "[entrypoint] Environment successfully loaded."
 
 exec docker-php-entrypoint apache2-foreground

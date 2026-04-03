@@ -10,6 +10,7 @@ FROM base AS builder
 
 # Build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    $PHPIZE_DEPS \
     libldap2-dev \
     libzip-dev \
     libxml2-dev \
@@ -27,7 +28,9 @@ RUN docker-php-ext-install \
     zip \
     xml \
     mbstring \
-    opcache
+    opcache \
+ && pecl install redis \
+ && docker-php-ext-enable redis
 
 # PHP base configuration (single immutable config)
 COPY docker/php/base.ini /usr/local/etc/php/conf.d/00-base.ini
