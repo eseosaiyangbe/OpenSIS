@@ -1859,8 +1859,54 @@ Final outcome of the reconciliation:
 
 - `opensis-prod` moved from `OutOfSync` to `Synced`
 - the public URL `https://opensis.raysosglobal.com` returned `HTTP/2 200` again
-- the current immutable prod image remained `docker.io/eseosaiyangbe/opensis-ui:git-efd83e6`
+- the current immutable prod image was later promoted to `docker.io/eseosaiyangbe/opensis-ui:git-c136761`
 - `dev` and `prod` no longer compete for the same kube-state-metrics cluster-scoped RBAC objects
+
+## Phase 22F: Finalize Prod Promotion, Demo Login, And Backup Readiness
+
+After the public path was healthy again, the next milestones were to promote the refreshed immutable production image, expose a safe demo login on the public page, and clear the last Argo CD health blocker.
+
+What changed:
+
+- [app/LoginInc.php](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/app/LoginInc.php)
+  - now shows a visible demo login panel on the public login page:
+    - `Username: demo`
+    - `Password: demo@123`
+- [k8s/overlays/prod/kustomization.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/overlays/prod/kustomization.yaml)
+  - now pins production to `docker.io/eseosaiyangbe/opensis-ui:git-c136761`
+- the production rollout also surfaced one more platform lesson:
+  - `opensis-db-backup-storage` stayed `Pending` because the `local-path` StorageClass uses `WaitForFirstConsumer`
+  - Argo CD therefore kept `opensis-prod` in `Progressing` until something actually mounted that backup PVC
+
+Representative commands and checks:
+
+```bash
+kubectl get deployment opensis-ui -n opensis -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+kubectl get pods -n opensis -l app=opensis-ui -o wide
+curl -ks https://opensis.raysosglobal.com | rg 'Demo Credentials|demo@123'
+
+kubectl create job -n opensis --from=cronjob/opensis-db-backup opensis-db-backup-manual-$(date +%s)
+kubectl get jobs,pods,pvc -n opensis
+kubectl describe pvc -n opensis opensis-db-backup-storage
+kubectl annotate application opensis-prod -n argocd argocd.argoproj.io/refresh=hard --overwrite
+kubectl get applications.argoproj.io -n argocd
+```
+
+Operational outcome:
+
+- the prod workload fully rolled to `docker.io/eseosaiyangbe/opensis-ui:git-c136761`
+- the public login page now visibly presents the demo credentials for the `demo` user
+- the one-off backup job caused `opensis-db-backup-storage` to bind successfully
+- once that PVC was bound, `opensis-prod` finally moved from `Synced / Progressing` to `Synced / Healthy`
+- all three Argo CD applications now report healthy steady state:
+  - `opensis-cloudflare`
+  - `opensis-dev`
+  - `opensis-prod`
+
+Lesson learned:
+
+- in single-node `local-path` setups, a backup PVC with `WaitForFirstConsumer` may leave an otherwise healthy application showing `Progressing` until the first backup job runs
+- once the first consumer mounts the claim, the PVC binds and Argo CD can report the application as fully healthy
 
 ## Environment Summary
 
@@ -1870,7 +1916,7 @@ Current environment intent is now:
 - `dev` stays on `nginx` ingress for predictable browser access
 - `dev` tracks the CI-backed image stream `docker.io/eseosaiyangbe/opensis-ui:main`
 - `prod` is the public-facing environment at `https://opensis.raysosglobal.com`
-- `prod` is pinned to the immutable image `docker.io/eseosaiyangbe/opensis-ui:git-efd83e6`
+- `prod` is pinned to the immutable image `docker.io/eseosaiyangbe/opensis-ui:git-c136761`
 - `prod` uses Traefik plus Cloudflare Tunnel, with the in-cluster origin adapter normalizing public requests before they reach openSIS
 - `prod` now uses unique kube-state-metrics cluster-scoped RBAC names so Argo CD can keep `dev` and `prod` synced independently
 

@@ -46,7 +46,7 @@ It currently changes:
 - app replicas to `2`
 - ingress host to `opensis.raysosglobal.com`
 - issuer to `letsencrypt-prod`
-- app image pinned through Kustomize to the immutable production tag `docker.io/eseosaiyangbe/opensis-ui:git-efd83e6`
+- app image pinned through Kustomize to the immutable production tag `docker.io/eseosaiyangbe/opensis-ui:git-c136761`
 - production Vault roles and secret paths
 - public ingress bound to `traefik`
 - prod-specific kube-state-metrics RBAC names so Argo CD does not fight `dev` for cluster-scoped ownership
@@ -63,6 +63,10 @@ Current public-edge note:
 - that adapter exists because openSIS is sensitive to raw non-browser-style origin requests
 - the adapter normalizes those requests before they reach `opensis-ui`
 - the base `opensis-ui` NetworkPolicy explicitly allows the `cloudflare` namespace so the adapter can reach the app
+- the public login page now includes a visible demo panel for the shared demo user:
+  - `Username: demo`
+  - `Password: demo@123`
+- the first prod backup job must run at least once so `opensis-db-backup-storage` can bind under the `local-path` `WaitForFirstConsumer` storage mode
 
 Apply it with:
 
@@ -77,8 +81,15 @@ kubectl kustomize k8s/overlays/prod | rg 'image:|ingressClassName:|opensis.rayso
 kubectl get deploy,pods,svc,ingress -n opensis -o wide
 kubectl logs -n opensis deploy/opensis-ui --since=5m
 kubectl get applications.argoproj.io -n argocd
+kubectl get pvc -n opensis
 curl -k -I https://opensis.raysosglobal.com
 ```
+
+Current steady-state expectation:
+
+- `opensis-prod` should be `Synced` and `Healthy` in Argo CD
+- both `opensis-ui` pods in `opensis` should be on `docker.io/eseosaiyangbe/opensis-ui:git-c136761`
+- `opensis-db-backup-storage` should be `Bound` after the first backup run
 
 Important installer note:
 
