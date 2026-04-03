@@ -16,5 +16,4 @@ patches:
   - path: grafana-deployment-patch.yaml
 images:
   - name: docker.io/eseosaiyangbe/opensis-ui
-    newName: opensis-ui
-    newTag: dev
+    newTag: main

@@ -914,7 +914,7 @@ The first successful workflow validation published:
 
 ### Current overlay state
 
-- `dev` is explicitly pinned through the `dev` overlay to `opensis-ui:dev`
+- `dev` is explicitly pinned through the `dev` overlay to the CI-backed integration tag `docker.io/eseosaiyangbe/opensis-ui:main`
 - `prod` is explicitly pinned through the `prod` overlay to the immutable registry tag `docker.io/eseosaiyangbe/opensis-ui:git-36ee457`
 - the base deployment now carries only a neutral published baseline image, while overlays own the environment-specific image decision
 
@@ -924,8 +924,7 @@ The current pinned production-shaped image is:
 
 Recommended discipline going forward:
 
-- rebuild and tag `dev` separately from `prod`
-- keep `dev` on a fast-moving lab tag
+- let CI publish the fast-moving integration image from `main` and also stamp the mutable `dev` alias
 - keep `prod` on an immutable release or commit tag
 - change image references in the overlays, not ad hoc in the live cluster
 

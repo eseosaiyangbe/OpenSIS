@@ -9,6 +9,17 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      publish_dev_alias:
+        description: Also publish the mutable dev alias
+        required: false
+        type: boolean
+        default: true
+      publish_prod_alias:
+        description: Also publish the mutable prod/latest aliases
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -55,6 +66,9 @@ jobs:
             type=ref,event=branch
             type=ref,event=tag
             type=sha,prefix=git-
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.publish_dev_alias) }}
+            type=raw,value=prod,enable=${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_prod_alias) }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_prod_alias) }}
 
       - name: Build and push image
         uses: docker/build-push-action@v6
@@ -67,3 +81,13 @@ jobs:
           build-args: |
             APP_VERSION=${{ github.ref_name }}
             VCS_REF=${{ github.sha }}
+
+      - name: Summarize published tags
+        run: |
+          {
+            echo "## openSIS UI image policy"
+            echo
+            echo "- main branch publishes: `main`, `git-<sha>`, and mutable `dev`"
+            echo "- version tags (`v*`) publish: the version tag itself, `git-<sha>`, mutable `prod`, and `latest`"
+            echo "- production manifests should stay pinned to immutable tags even though CI can publish mutable aliases"
+          } >> "$GITHUB_STEP_SUMMARY"
