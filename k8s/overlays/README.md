@@ -21,12 +21,20 @@ It currently changes:
 - issuer to `local-selfsigned`
 - smaller DB storage and lower resource requests
 - app image pinned through Kustomize to the CI-backed branch tag `docker.io/eseosaiyangbe/opensis-ui:main`
+- local ingress kept on `nginx` so `https://opensis.dev.local` stays stable during public-edge experiments
 
 Apply it with:
 
 ```bash
 kubectl apply -k k8s/overlays/dev
 ```
+
+Current validation target:
+
+- browser URL: `https://opensis.dev.local`
+- expected ingress class in the live cluster: `nginx`
+- current QA status: browser access, restart resilience, and Vault-driven `Data.php` generation are all passing
+- known limitation: the live dev path is not currently served by Traefik, so direct Traefik checks for `opensis.dev.local` will return `404`
 
 ## prod
 
@@ -36,15 +44,35 @@ It currently changes:
 
 - namespace to `opensis`
 - app replicas to `2`
-- ingress host to `opensis.example.com`
+- ingress host to `opensis.raysosglobal.com`
 - issuer to `letsencrypt-prod`
-- app image pinned through Kustomize to the immutable production tag `docker.io/eseosaiyangbe/opensis-ui:git-36ee457`
+- app image pinned through Kustomize to the immutable production tag `docker.io/eseosaiyangbe/opensis-ui:git-efd83e6`
 - production Vault roles and secret paths
+- public ingress bound to `traefik`
 
-Before using it in a real release flow, replace the current production tag with your next immutable release tag and keep the hostname values aligned.
+Current promotion rule:
+
+- build and validate in `dev` first
+- promote `prod` only by changing the immutable `git-<sha>` tag in [k8s/overlays/prod/kustomization.yaml](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/overlays/prod/kustomization.yaml)
+- keep live production testing aligned with `https://opensis.raysosglobal.com`
+
+Current public-edge note:
+
+- the working public path uses Cloudflare Tunnel plus the internal `opensis-origin-adapter`
+- that adapter exists because openSIS is sensitive to raw non-browser-style origin requests
+- the adapter normalizes those requests before they reach `opensis-ui`
 
 Apply it with:
 
 ```bash
 kubectl apply -k k8s/overlays/prod
+```
+
+Recommended verification after a prod image promotion:
+
+```bash
+kubectl kustomize k8s/overlays/prod | rg 'image:|ingressClassName:|opensis.raysosglobal.com'
+kubectl get deploy,pods,svc,ingress -n opensis -o wide
+kubectl logs -n opensis deploy/opensis-ui --since=5m
+curl -k -I https://opensis.raysosglobal.com
 ```

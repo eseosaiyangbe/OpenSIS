@@ -17,4 +17,4 @@ patches:
   - path: grafana-pvc-patch.yaml
 images:
   - name: docker.io/eseosaiyangbe/opensis-ui
-    newTag: git-36ee457
+    newTag: git-efd83e6

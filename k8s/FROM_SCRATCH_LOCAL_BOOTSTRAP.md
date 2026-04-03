@@ -904,23 +904,23 @@ Trigger and validate the workflow from GitHub Actions, then verify the published
 
 ```bash
 docker pull docker.io/eseosaiyangbe/opensis-ui:main
-docker pull docker.io/eseosaiyangbe/opensis-ui:git-36ee457
+docker pull docker.io/eseosaiyangbe/opensis-ui:git-efd83e6
 ```
 
 The first successful workflow validation published:
 
 - `docker.io/eseosaiyangbe/opensis-ui:main`
-- `docker.io/eseosaiyangbe/opensis-ui:git-36ee457`
+- `docker.io/eseosaiyangbe/opensis-ui:git-efd83e6`
 
 ### Current overlay state
 
 - `dev` is explicitly pinned through the `dev` overlay to the CI-backed integration tag `docker.io/eseosaiyangbe/opensis-ui:main`
-- `prod` is explicitly pinned through the `prod` overlay to the immutable registry tag `docker.io/eseosaiyangbe/opensis-ui:git-36ee457`
+- `prod` is explicitly pinned through the `prod` overlay to the immutable registry tag `docker.io/eseosaiyangbe/opensis-ui:git-efd83e6`
 - the base deployment now carries only a neutral published baseline image, while overlays own the environment-specific image decision
 
 The current pinned production-shaped image is:
 
-- `docker.io/eseosaiyangbe/opensis-ui:git-36ee457`
+- `docker.io/eseosaiyangbe/opensis-ui:git-efd83e6`
 
 Recommended discipline going forward:
 
@@ -1750,18 +1750,22 @@ Cloudflare dashboard setup for the live cutover:
 1. create a named tunnel in Cloudflare
 2. add the public hostname:
    - `opensis.raysosglobal.com`
-3. point that hostname at the Traefik NodePort origin for this single-node lab:
-   - `http://<NODE_IP>:30621`
+3. point that hostname at the in-cluster origin adapter:
+   - `http://opensis-origin-adapter.cloudflare.svc.cluster.local:8080`
 4. copy the generated tunnel token
 
 Single-node lab finding:
 
 - the Cloudflare tunnel was initially pointed at `http://traefik.traefik.svc.cluster.local`
-- even after the tunnel itself became healthy, `cloudflared` still logged `dial tcp 10.43.169.69:80: connect: connection refused`
-- direct validation showed Traefik was healthy through its NodePort instead:
-  - `curl -A 'Mozilla/5.0' -H 'Host: opensis.raysosglobal.com' http://127.0.0.1:30621/` returned `200`
-- for this single-node k3s setup, the practical public-edge origin is therefore Traefik's NodePort, not the ClusterIP service
-- `k8s/platform/cloudflare/networkpolicy.yaml` was widened to allow outbound TCP `30621` for that origin path
+- later it was also tested against Traefik's NodePort
+- both approaches were still brittle because openSIS was too sensitive to non-browser-style origin requests
+- the stable public solution became an internal `opensis-origin-adapter` service in the `cloudflare` namespace
+- that adapter forwards to openSIS with browser-like request headers so Cloudflare can reliably receive `200` responses
+- the working public path is therefore:
+  - Cloudflare
+  - `cloudflared`
+  - `opensis-origin-adapter`
+  - `opensis-ui`
 
 Seed the live token in Vault:
 
@@ -1812,11 +1816,28 @@ Operational conclusion:
 - the public application path is deliberately shaped as:
   - Cloudflare
   - `cloudflared`
-  - Traefik
+  - `opensis-origin-adapter`
   - `opensis-ui`
-- the production ingress is now explicitly Traefik-bound for that public path
+- the production ingress remains Traefik-bound, while the adapter handles the request normalization needed for reliable public responses
 - the only remaining live dependencies for activation are the real Cloudflare tunnel token, the Vault role/policy setup, and the dashboard hostname mapping
 
+
+## Environment Summary
+
+Current environment intent is now:
+
+- `dev` is the stable local-learning environment at `https://opensis.dev.local`
+- `dev` stays on `nginx` ingress for predictable browser access
+- `dev` tracks the CI-backed image stream `docker.io/eseosaiyangbe/opensis-ui:main`
+- `prod` is the public-facing environment at `https://opensis.raysosglobal.com`
+- `prod` is pinned to the immutable image `docker.io/eseosaiyangbe/opensis-ui:git-efd83e6`
+- `prod` uses Traefik plus Cloudflare Tunnel, with the in-cluster origin adapter normalizing public requests before they reach openSIS
+
+Promotion rule:
+
+- validate behavior in `dev` first
+- promote `prod` only by changing the immutable `git-<sha>` tag in `k8s/overlays/prod/kustomization.yaml`
+- verify the live public URL after each promotion
 
 ## Updated Remaining Roadmap
 
