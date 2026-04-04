@@ -106,6 +106,37 @@ Security should not be a final polishing step. It needs to be present in the fir
 - provenance or attestation where possible
 - protected environments for production approvals
 
+## Implementation Status
+
+Current blueprint progress:
+
+- Phase A: complete
+  - separate CI/CD blueprint documented in this file
+  - promotion model, GitOps authority, and security-first direction defined
+- Phase B: in progress
+  - dedicated repository validation workflow implemented and passing
+  - shell and YAML validation scope tuned to repo-owned infrastructure and helper scripts
+  - Kustomize render validation now covers base, dev, prod, cloudflare, and argocd
+- Phase C: started
+  - UI image workflow now resolves an immutable `git-<sha>` tag for scanning
+  - Trivy image scanning added in report mode to establish a vulnerability baseline before enforcing a hard gate
+- Phase D: not started
+- Phase E: not started
+
+Recently completed milestone:
+
+- `Validate Repository` is now an active CI gate and verifies:
+  - GitHub Actions workflow linting with `actionlint`
+  - shell script linting with `shellcheck`
+  - infrastructure YAML linting with `yamllint`
+  - Kustomize render checks for the repo's core deployment layers
+
+Why this matters:
+
+- broken manifests and scripts are now caught before image publication or GitOps reconciliation
+- validation scope is strict enough to protect the platform, but narrow enough to avoid failing on vendored or unrelated app content
+- this is the first real production-grade delivery control implemented from the blueprint
+
 ## Current State
 
 The repo already has the beginnings of a pipeline:
@@ -120,9 +151,9 @@ This is a strong foundation, but it is not yet a complete production-grade CI/CD
 
 Current gaps:
 
-- no dedicated validate/test workflow separate from image publishing
+- repository validation workflow now exists, but broader test coverage is still missing
 - no formal promotion workflow with explicit gates
-- no image scanning gate in the promotion path
+- image scanning exists in report mode, but it is not yet an enforcement gate
 - no signed artifacts
 - no SBOM/provenance publication
 - no post-deploy smoke-test workflow
@@ -414,6 +445,12 @@ Deliverables:
 - stronger workflow permissions
 - lint and render gates on pull requests
 
+Current status:
+
+- `validate.yml` implemented
+- lint and render gates implemented and passing
+- workflow permission hardening started, but not complete across all workflows
+
 ### Phase C: Artifact Security
 
 Deliverables:
@@ -422,6 +459,11 @@ Deliverables:
 - SBOM generation
 - image signing
 - artifact retention policy
+
+Current status:
+
+- image scanning added to the UI workflow in report mode
+- SBOM, signing, and retention policy work still remain
 
 ### Phase D: Promotion Workflow
 
