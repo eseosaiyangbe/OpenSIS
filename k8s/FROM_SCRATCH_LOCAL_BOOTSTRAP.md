@@ -1971,6 +1971,60 @@ Operational lesson:
 - this openSIS deployment should remain single-replica until PHP sessions are moved to shared storage such as Redis
 - horizontal scaling without shared session state causes intermittent login failures and logout-on-refresh behavior
 
+## Phase 22H: Enable Redis-Backed Sessions And Restore Safe Horizontal Scaling
+
+After stabilizing prod temporarily by reducing `opensis-ui` to one replica, the next goal was to remove that temporary limitation and make multi-replica prod safe again.
+
+What was added first:
+
+- the UI image was extended to include the PHP `redis` extension
+- the UI runtime and base config were extended with optional session settings:
+  - `PHP_SESSION_SAVE_HANDLER`
+  - `PHP_SESSION_SAVE_PATH`
+  - `PHP_SESSION_COOKIE_SECURE`
+  - `PHP_SESSION_COOKIE_SAMESITE`
+- a prod-only in-cluster Redis service was added:
+  - `opensis-session-redis`
+
+The safe rollout order was deliberate:
+
+1. build and validate the Redis-capable image locally
+2. promote prod to that image while leaving Redis session settings disabled
+3. verify the app still behaved normally
+4. enable Redis-backed sessions in the prod config map
+5. restart `opensis-ui` and verify the live PHP session settings
+6. only after that, scale prod back to `2` replicas
+
+Representative validation commands:
+
+```bash
+kubectl get deployment opensis-ui -n opensis -o jsonpath='{.spec.replicas}{" desired / "}{.status.readyReplicas}{" ready\n"}'
+kubectl get pods -n opensis -l app=opensis-ui -o wide
+kubectl get deploy,svc,pods -n opensis | grep opensis-session-redis
+
+for p in $(kubectl get pods -n opensis -l app=opensis-ui -o name); do
+  echo "--- $p ---"
+  kubectl exec -n opensis ${p#pod/} -- sh -lc 'php -i | grep -E "session.save_handler|session.save_path|session.cookie_secure|session.cookie_samesite"'
+done
+```
+
+Validated outcome:
+
+- `opensis-session-redis` is running in the `opensis` namespace
+- both `opensis-ui` pods report:
+  - `session.save_handler => redis`
+  - `session.save_path => tcp://opensis-session-redis:6379`
+  - `session.cookie_secure => On`
+  - `session.cookie_samesite => Strict`
+- prod now runs as `2 desired / 2 ready`
+- browser login, refresh, and multi-tab behavior remained stable after scaling back up
+
+Operational conclusion:
+
+- the temporary single-replica workaround is no longer the production baseline
+- Redis-backed sessions are now the steady-state solution for safe horizontal scaling
+- future prod scaling should preserve the shared session backend as a first-class dependency
+
 ## Environment Summary
 
 Current environment intent is now:
@@ -1982,7 +2036,8 @@ Current environment intent is now:
 - `prod` is pinned to the immutable image `docker.io/eseosaiyangbe/opensis-ui:git-244d863`
 - `prod` uses Traefik plus Cloudflare Tunnel, with the in-cluster origin adapter normalizing public requests before they reach openSIS
 - the origin adapter now forwards `X-Forwarded-Proto https` so the app sees the correct public scheme
-- `prod` intentionally runs a single `opensis-ui` replica until session storage is moved off local PHP file sessions
+- `prod` now uses Redis-backed PHP sessions with secure session cookies
+- `prod` runs `opensis-ui` safely at `2` replicas after validating shared session behavior across both pods
 - `prod` now uses unique kube-state-metrics cluster-scoped RBAC names so Argo CD can keep `dev` and `prod` synced independently
 
 Promotion rule:
