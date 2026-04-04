@@ -31,8 +31,7 @@ reconcile_grants() {
     if mysql -u root -p"$root_password" -Nse "SHOW DATABASES LIKE '$db'" | grep -qx "$db"; then
       echo "[mariadb-entrypoint] Ensuring grants for ${app_user} on ${db}.*"
       mysql -u root -p"$root_password" <<SQL
-GRANT ALL PRIVILEGES ON \
-\\`$db\\`.* TO '$app_user'@'%' IDENTIFIED BY '$app_password';
+GRANT ALL PRIVILEGES ON ${db}.* TO '$app_user'@'%' IDENTIFIED BY '$app_password';
 FLUSH PRIVILEGES;
 SQL
     fi
