@@ -486,7 +486,7 @@ Current status:
 
 - manual prod promotion workflow is verified and updates the prod overlay by PR instead of direct cluster mutation
 - successful promotion path validated: workflow dispatch, PR creation, PR merge, Argo sync, and prod image rollout
-- workflow now supports a `production-promotion` GitHub Environment gate for protected approval
+- workflow now supports a `production` GitHub Environment gate for protected approval
 - GitHub-side reviewer rules and post-promotion verification automation still remain
 
 ### Phase E: Post-Deploy Verification
