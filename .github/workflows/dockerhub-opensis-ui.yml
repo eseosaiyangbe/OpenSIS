@@ -104,7 +104,7 @@ jobs:
             VCS_REF=${{ github.sha }}
 
       - name: Run Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.29.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: ${{ steps.scan_image.outputs.scan_image }}
           format: table
