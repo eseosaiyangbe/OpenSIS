@@ -1995,17 +1995,32 @@ The safe rollout order was deliberate:
 5. restart `opensis-ui` and verify the live PHP session settings
 6. only after that, scale prod back to `2` replicas
 
-Representative validation commands:
+Representative commands used for the `prod` rollout:
 
 ```bash
-kubectl get deployment opensis-ui -n opensis -o jsonpath='{.spec.replicas}{" desired / "}{.status.readyReplicas}{" ready\n"}'
-kubectl get pods -n opensis -l app=opensis-ui -o wide
+# promote the Redis-capable image first, but leave Redis sessions disabled
+git push origin main
+
+kubectl annotate application opensis-prod -n argocd argocd.argoproj.io/refresh=hard --overwrite
+kubectl patch application opensis-prod -n argocd --type merge -p '{"operation":{"sync":{"prune":false,"syncOptions":["CreateNamespace=true"],"syncStrategy":{"apply":{}}}}}'
+
+kubectl rollout status deployment/opensis-ui -n opensis
+kubectl get deployment opensis-ui -n opensis -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
 kubectl get deploy,svc,pods -n opensis | grep opensis-session-redis
 
+# then enable Redis sessions in the prod config and restart the UI
+kubectl get configmap -n opensis opensis-ui-config -o yaml
+kubectl rollout restart deployment/opensis-ui -n opensis
+kubectl rollout status deployment/opensis-ui -n opensis
+
+# verify live PHP session settings and then scale safely back to two replicas
 for p in $(kubectl get pods -n opensis -l app=opensis-ui -o name); do
   echo "--- $p ---"
   kubectl exec -n opensis ${p#pod/} -- sh -lc 'php -i | grep -E "session.save_handler|session.save_path|session.cookie_secure|session.cookie_samesite"'
 done
+
+kubectl get deployment opensis-ui -n opensis -o jsonpath='{.spec.replicas}{" desired / "}{.status.readyReplicas}{" ready\n"}'
+kubectl get pods -n opensis -l app=opensis-ui -o wide
 ```
 
 Validated outcome:
@@ -2024,6 +2039,59 @@ Operational conclusion:
 - the temporary single-replica workaround is no longer the production baseline
 - Redis-backed sessions are now the steady-state solution for safe horizontal scaling
 - future prod scaling should preserve the shared session backend as a first-class dependency
+
+## Phase 22I: Bring Dev To The Same Redis-Backed Session Model
+
+After production was validated with Redis-backed PHP sessions, the same session architecture was applied to `dev` so the two environments would stop diverging in one of the most failure-prone runtime behaviors.
+
+Why this was worth doing even though `dev` was already stable:
+
+- `dev` had been working at `1` replica with file-backed PHP sessions
+- `prod` now depended on Redis-backed sessions for safe horizontal scaling
+- keeping `dev` on a different session model would reduce environment parity and make session bugs harder to rehearse safely
+
+What changed in `dev`:
+
+- a `opensis-session-redis` deployment, service, and network policy were added to the `opensis-dev` namespace
+- the `dev` UI config was updated to set:
+  - `PHP_SESSION_SAVE_HANDLER=redis`
+  - `PHP_SESSION_SAVE_PATH=tcp://opensis-session-redis:6379`
+  - `PHP_SESSION_COOKIE_SECURE=1`
+  - `PHP_SESSION_COOKIE_SAMESITE=Strict`
+- `dev` was intentionally kept at `1` `opensis-ui` replica to preserve the already-stable browser path while gaining runtime parity
+
+Representative commands used for the `dev` rollout:
+
+```bash
+git push origin main
+
+kubectl annotate application opensis-dev -n argocd argocd.argoproj.io/refresh=hard --overwrite
+kubectl patch application opensis-dev -n argocd --type merge -p '{"operation":{"sync":{"prune":false,"syncOptions":["CreateNamespace=true"],"syncStrategy":{"apply":{}}}}}'
+
+kubectl rollout status deployment/opensis-ui -n opensis-dev
+kubectl get deploy,svc,pods -n opensis-dev | grep opensis-session-redis
+
+kubectl rollout restart deployment/opensis-ui -n opensis-dev
+kubectl rollout status deployment/opensis-ui -n opensis-dev
+
+kubectl exec -n opensis-dev deploy/opensis-ui -- sh -lc 'php -i | grep -E "session.save_handler|session.save_path|session.cookie_secure|session.cookie_samesite"'
+```
+
+Validated outcome:
+
+- `opensis-session-redis` is running in `opensis-dev`
+- the `opensis-dev` UI now reports:
+  - `session.save_handler => redis`
+  - `session.save_path => tcp://opensis-session-redis:6379`
+  - `session.cookie_secure => On`
+  - `session.cookie_samesite => Strict`
+- browser behavior at `https://opensis.dev.local` remained stable
+
+Operational conclusion:
+
+- both `dev` and `prod` now use the same Redis-backed session model
+- `dev` remains lower-risk because it still uses a single UI replica and local `nginx` ingress
+- session behavior can now be tested with much better environment parity before production promotions
 
 ## Environment Summary
 

@@ -22,6 +22,7 @@ It currently changes:
 - smaller DB storage and lower resource requests
 - app image pinned through Kustomize to the CI-backed branch tag `docker.io/eseosaiyangbe/opensis-ui:main`
 - local ingress kept on `nginx` so `https://opensis.dev.local` stays stable during public-edge experiments
+- dev now uses Redis-backed PHP sessions for environment parity with prod, while still remaining at `1` UI replica
 
 Apply it with:
 
@@ -33,7 +34,7 @@ Current validation target:
 
 - browser URL: `https://opensis.dev.local`
 - expected ingress class in the live cluster: `nginx`
-- current QA status: browser access, restart resilience, and Vault-driven `Data.php` generation are all passing
+- current QA status: browser access, restart resilience, Vault-driven `Data.php` generation, and Redis-backed session validation are all passing
 - known limitation: the live dev path is not currently served by Traefik, so direct Traefik checks for `opensis.dev.local` will return `404`
 
 ## prod
