@@ -56,7 +56,14 @@ jobs:
       - name: Lint YAML files
         run: |
           set -eu
-          mapfile -t yaml_files < <(git ls-files '*.yml' '*.yaml')
+          mapfile -t yaml_files < <(
+            {
+              find k8s -type f \( -name '*.yml' -o -name '*.yaml' \)
+              find observability -type f \( -name '*.yml' -o -name '*.yaml' \)
+              find cloudflared -type f \( -name '*.yml' -o -name '*.yaml' \)
+              find tests -type f \( -name '*.yml' -o -name '*.yaml' \)
+            } | sort -u
+          )
           if [ "${#yaml_files[@]}" -gt 0 ]; then
             python3 -m yamllint -c .yamllint.yml -s "${yaml_files[@]}"
           fi
