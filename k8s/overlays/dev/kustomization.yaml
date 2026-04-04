@@ -3,6 +3,9 @@ kind: Kustomization
 namespace: opensis-dev
 resources:
   - ../../base
+  - opensis-session-redis-deployment.yaml
+  - opensis-session-redis-service.yaml
+  - opensis-session-redis-networkpolicy.yaml
 patches:
   - path: opensis-ui-configmap-patch.yaml
   - path: opensis-ui-deployment-patch.yaml
