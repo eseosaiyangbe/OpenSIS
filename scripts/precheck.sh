@@ -34,7 +34,7 @@ if ! command -v docker-compose >/dev/null 2>&1 && ! docker compose version >/dev
   exit 1
 fi
 
-if [ $(id -u) -eq 0 ]; then
+if [ "$(id -u)" -eq 0 ]; then
   echo "WARNING: Running as root. It is safer to run as non-root user."
 fi
 

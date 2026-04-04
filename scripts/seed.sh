@@ -37,10 +37,11 @@ if [ ! -f "$DATA_DIR/root_token" ]; then
   exit 1
 fi
 
-export VAULT_TOKEN=$(cat "$DATA_DIR/root_token") || {
+VAULT_TOKEN=$(cat "$DATA_DIR/root_token") || {
   echo "ERROR: Failed to read root_token"
   exit 1
 }
+export VAULT_TOKEN
 
 echo "Seeding Vault secrets (idempotent)..."
 

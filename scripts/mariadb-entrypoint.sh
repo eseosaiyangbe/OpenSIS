@@ -8,6 +8,7 @@ until [ -s "$SECRETS_FILE" ]; do
 done
 
 set -a
+# shellcheck source=/dev/null
 . "$SECRETS_FILE"
 set +a
 
@@ -31,7 +32,7 @@ reconcile_grants() {
       echo "[mariadb-entrypoint] Ensuring grants for ${app_user} on ${db}.*"
       mysql -u root -p"$root_password" <<SQL
 GRANT ALL PRIVILEGES ON \
-\\`${db//\`/\`\`}\\`.* TO '${app_user}'@'%' IDENTIFIED BY '${app_password//\'/\'\'}';
+\\`$db\\`.* TO '$app_user'@'%' IDENTIFIED BY '$app_password';
 FLUSH PRIVILEGES;
 SQL
     fi

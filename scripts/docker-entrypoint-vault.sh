@@ -8,7 +8,7 @@ echo "[entrypoint] Waiting for Vault-rendered application secrets..."
 
 timeout="$WAIT_TIMEOUT"
 
-while [ $timeout -gt 0 ]; do
+while [ "$timeout" -gt 0 ]; do
   if [ -s "$SECRETS_FILE" ] && grep -q DB_HOST "$SECRETS_FILE"; then
     break
   fi
@@ -17,7 +17,7 @@ while [ $timeout -gt 0 ]; do
   timeout=$((timeout-2))
 done
 
-if [ $timeout -eq 0 ]; then
+if [ "$timeout" -eq 0 ]; then
   echo "[entrypoint] ERROR: Vault secrets not available after ${WAIT_TIMEOUT} seconds."
   exit 1
 fi
@@ -26,6 +26,7 @@ echo "[entrypoint] Secrets file detected."
 
 # Export environment variables
 set -a
+# shellcheck source=/dev/null
 . "$SECRETS_FILE"
 set +a
 
