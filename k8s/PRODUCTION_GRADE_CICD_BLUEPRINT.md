@@ -113,10 +113,12 @@ Current blueprint progress:
 - Phase A: complete
   - separate CI/CD blueprint documented in this file
   - promotion model, GitOps authority, and security-first direction defined
-- Phase B: in progress
+- Phase B: complete
   - dedicated repository validation workflow implemented and passing
   - shell and YAML validation scope tuned to repo-owned infrastructure and helper scripts
   - Kustomize render validation now covers base, dev, prod, cloudflare, and argocd
+  - workflow permissions explicitly reviewed and kept at least privilege (`contents: read`)
+  - pull-request validation now follows the same scoped trigger model as push validation
 - Phase C: started
   - UI image workflow now resolves an immutable `git-<sha>` tag for scanning
   - Trivy image scanning added in report mode to establish a vulnerability baseline before enforcing a hard gate
@@ -447,9 +449,10 @@ Deliverables:
 
 Current status:
 
+- complete
 - `validate.yml` implemented
 - lint and render gates implemented and passing
-- workflow permission hardening started, but not complete across all workflows
+- workflow permissions explicitly reviewed and kept at least privilege for the current workflow set
 
 ### Phase C: Artifact Security
 

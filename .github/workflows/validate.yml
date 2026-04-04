@@ -2,6 +2,13 @@ name: Validate Repository
 
 on:
   pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'k8s/**'
+      - 'scripts/**'
+      - 'Dockerfile'
+      - '*.yml'
+      - '*.yaml'
   push:
     branches:
       - main
