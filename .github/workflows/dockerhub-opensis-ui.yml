@@ -75,6 +75,17 @@ jobs:
             type=raw,value=prod,enable=${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_prod_alias) }}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_prod_alias) }}
 
+      - name: Resolve immutable scan tag
+        run: |
+          set -eu
+          SCAN_IMAGE=$(printf '%s\n' "${{ steps.meta.outputs.tags }}" | grep ':git-' | head -n 1)
+          if [ -z "${SCAN_IMAGE:-}" ]; then
+            echo "Unable to resolve immutable git-<sha> tag for scanning" >&2
+            exit 1
+          fi
+          echo "SCAN_IMAGE=$SCAN_IMAGE" >> "$GITHUB_ENV"
+
+
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
@@ -86,6 +97,16 @@ jobs:
           build-args: |
             APP_VERSION=${{ github.ref_name }}
             VCS_REF=${{ github.sha }}
+
+      - name: Run Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          image-ref: ${{ env.SCAN_IMAGE }}
+          format: table
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
 
       - name: Summarize published tags
         run: |
