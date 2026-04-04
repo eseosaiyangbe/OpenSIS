@@ -125,6 +125,8 @@ Current blueprint progress:
   - workflow now retains Trivy scan output and an SPDX SBOM as build artifacts for 30 days
   - immutable image digests are now signed with keyless Cosign using GitHub OIDC
 - Phase D: in progress
+  - manual prod promotion workflow is verified end to end through PR creation, merge, and Argo reconciliation
+  - promotion workflow now supports a GitHub Environment gate for protected approval
 - Phase E: not started
 
 Recently completed milestone:
@@ -156,7 +158,7 @@ This is a strong foundation, but it is not yet a complete production-grade CI/CD
 Current gaps:
 
 - repository validation workflow now exists, but broader test coverage is still missing
-- promotion workflow still needs approval protection and post-merge verification
+- promotion workflow still needs GitHub-side environment reviewer configuration and post-merge verification automation
 - image scanning exists in report mode, but it is not yet an enforcement gate
 - provenance attestation is not yet published
 - no post-deploy smoke-test workflow
@@ -482,8 +484,10 @@ Deliverables:
 
 Current status:
 
-- manual prod promotion workflow is being added to update the prod overlay by PR instead of direct cluster mutation
-- protected approval and post-promotion verification still remain
+- manual prod promotion workflow is verified and updates the prod overlay by PR instead of direct cluster mutation
+- successful promotion path validated: workflow dispatch, PR creation, PR merge, Argo sync, and prod image rollout
+- workflow now supports a `production-promotion` GitHub Environment gate for protected approval
+- GitHub-side reviewer rules and post-promotion verification automation still remain
 
 ### Phase E: Post-Deploy Verification
 
