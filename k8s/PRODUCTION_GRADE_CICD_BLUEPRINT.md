@@ -119,12 +119,12 @@ Current blueprint progress:
   - Kustomize render validation now covers base, dev, prod, cloudflare, and argocd
   - workflow permissions explicitly reviewed and kept at least privilege (`contents: read`)
   - pull-request validation now follows the same scoped trigger model as push validation
-- Phase C: in progress
+- Phase C: complete
   - UI image workflow now resolves an immutable `git-<sha>` tag for scanning
   - Trivy image scanning added in report mode to establish a vulnerability baseline before enforcing a hard gate
   - workflow now retains Trivy scan output and an SPDX SBOM as build artifacts for 30 days
   - immutable image digests are now signed with keyless Cosign using GitHub OIDC
-- Phase D: not started
+- Phase D: in progress
 - Phase E: not started
 
 Recently completed milestone:
@@ -156,10 +156,9 @@ This is a strong foundation, but it is not yet a complete production-grade CI/CD
 Current gaps:
 
 - repository validation workflow now exists, but broader test coverage is still missing
-- no formal promotion workflow with explicit gates
+- promotion workflow still needs approval protection and post-merge verification
 - image scanning exists in report mode, but it is not yet an enforcement gate
-- no signed artifacts
-- no SBOM/provenance publication
+- provenance attestation is not yet published
 - no post-deploy smoke-test workflow
 - no codified rollback workflow
 
@@ -467,11 +466,11 @@ Deliverables:
 
 Current status:
 
+- complete
 - image scanning added to the UI workflow in report mode
 - SBOM generation added to the UI workflow
 - scan and SBOM artifacts are now retained for 30 days
-- keyless Cosign signing has been added for immutable image digests
-- Phase C should be considered complete once the signing workflow run is verified successfully
+- keyless Cosign signing is verified for immutable image digests
 
 ### Phase D: Promotion Workflow
 
@@ -480,6 +479,11 @@ Deliverables:
 - explicit prod promotion workflow
 - immutable image-only prod changes
 - protected approval flow
+
+Current status:
+
+- manual prod promotion workflow is being added to update the prod overlay by PR instead of direct cluster mutation
+- protected approval and post-promotion verification still remain
 
 ### Phase E: Post-Deploy Verification
 
