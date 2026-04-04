@@ -100,18 +100,6 @@ require_once('functions/langFnc.php');
                 </div>
                 <div class="panel-body">
 
-                    <?php if (getenv('APP_ENV') === 'dev') { ?>
-                    <div class="alert alert-info" role="alert">
-                        <strong>OpenSIS Project is for learning and testing of DevOps Core Concepts and Tools.</strong>
-                        <br/>
-                        <em>Demo User credentials:</em>
-                        <ul>
-                            <li>UserName: <strong>demo</strong></li>
-                            <li>Password: <strong>demo@123</strong></li>
-                        </ul>
-                    </div>
-                    <?php } ?>
-
                     <div class="row">
                         <!-- <div class="col-md-5 text-center school-logo">
                             <img src="assets/images/peach_county_logo.png" width="180" />
