@@ -39,6 +39,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Resolve image repository
+        id: image_repo
         env:
           DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
           DOCKERHUB_REPOSITORY: ${{ vars.DOCKERHUB_REPOSITORY }}
@@ -51,7 +52,8 @@ jobs:
           fi
 
           IMAGE_REPOSITORY="${DOCKERHUB_REPOSITORY:-opensis-ui}"
-          echo "IMAGE_NAME=${DOCKERHUB_USERNAME}/${IMAGE_REPOSITORY}" >> "$GITHUB_ENV"
+          IMAGE_NAME="${DOCKERHUB_USERNAME}/${IMAGE_REPOSITORY}"
+          echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -66,7 +68,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ steps.image_repo.outputs.image_name }}
           tags: |
             type=ref,event=branch
             type=ref,event=tag
@@ -76,6 +78,7 @@ jobs:
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_prod_alias) }}
 
       - name: Resolve immutable scan tag
+        id: scan_image
         run: |
           set -eu
           SCAN_IMAGE=$(printf '%s\n' "${{ steps.meta.outputs.tags }}" | grep ':git-' | head -n 1)
@@ -83,7 +86,7 @@ jobs:
             echo "Unable to resolve immutable git-<sha> tag for scanning" >&2
             exit 1
           fi
-          echo "SCAN_IMAGE=$SCAN_IMAGE" >> "$GITHUB_ENV"
+          echo "scan_image=$SCAN_IMAGE" >> "$GITHUB_OUTPUT"
 
 
       - name: Build and push image
@@ -101,7 +104,7 @@ jobs:
       - name: Run Trivy vulnerability scan
         uses: aquasecurity/trivy-action@0.29.0
         with:
-          image-ref: ${{ env.SCAN_IMAGE }}
+          image-ref: ${{ steps.scan_image.outputs.scan_image }}
           format: table
           ignore-unfixed: true
           vuln-type: 'os,library'
@@ -110,11 +113,11 @@ jobs:
 
       - name: Summarize published tags
         run: |
-          {
-            echo "## openSIS UI image policy"
-            echo
-            echo "- main branch publishes: `main`, `git-<sha>`, and mutable `dev`"
-            echo "- version tags (`v*`) publish: the version tag itself, `git-<sha>`, mutable `prod`, and `latest`"
-            echo "- production manifests should stay pinned to immutable tags even though CI can publish mutable aliases"
-            echo "- Trivy currently runs in report mode while the vulnerability baseline is being established"
-          } >> "$GITHUB_STEP_SUMMARY"
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## openSIS UI image policy
+
+          - main branch publishes: `main`, `git-<sha>`, and mutable `dev`
+          - version tags (`v*`) publish: the version tag itself, `git-<sha>`, mutable `prod`, and `latest`
+          - production manifests should stay pinned to immutable tags even though CI can publish mutable aliases
+          - Trivy currently runs in report mode while the vulnerability baseline is being established
+          EOF

@@ -72,11 +72,11 @@ jobs:
 
       - name: Summarize validation coverage
         run: |
-          {
-            echo '## Validation Coverage'
-            echo
-            echo '- GitHub Actions workflow linting via `actionlint`'
-            echo '- Shell script linting via `shellcheck`'
-            echo '- YAML linting via `yamllint`'
-            echo '- Kustomize render checks for base, dev, prod, cloudflare, and argocd'
-          } >> "$GITHUB_STEP_SUMMARY"
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Validation Coverage
+
+          - GitHub Actions workflow linting via `actionlint`
+          - Shell script linting via `shellcheck`
+          - YAML linting via `yamllint`
+          - Kustomize render checks for base, dev, prod, cloudflare, and argocd
+          EOF
