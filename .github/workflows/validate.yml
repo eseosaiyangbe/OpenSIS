@@ -58,7 +58,7 @@ jobs:
           set -eu
           mapfile -t yaml_files < <(git ls-files '*.yml' '*.yaml')
           if [ "${#yaml_files[@]}" -gt 0 ]; then
-            python3 -m yamllint -s "${yaml_files[@]}"
+            python3 -m yamllint -c .yamllint.yml -s "${yaml_files[@]}"
           fi
 
       - name: Render Kubernetes base and overlays
