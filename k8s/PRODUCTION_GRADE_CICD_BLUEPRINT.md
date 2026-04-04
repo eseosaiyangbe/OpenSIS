@@ -123,6 +123,7 @@ Current blueprint progress:
   - UI image workflow now resolves an immutable `git-<sha>` tag for scanning
   - Trivy image scanning added in report mode to establish a vulnerability baseline before enforcing a hard gate
   - workflow now retains Trivy scan output and an SPDX SBOM as build artifacts for 30 days
+  - immutable image digests are now signed with keyless Cosign using GitHub OIDC
 - Phase D: not started
 - Phase E: not started
 
@@ -347,7 +348,7 @@ Recommended controls:
 Recommended controls:
 
 - use immutable tags for production
-- add image signing with Cosign
+- add image signing with Cosign using keyless OIDC where possible
 - publish SBOMs
 - retain scan reports with workflow artifacts
 
@@ -469,7 +470,8 @@ Current status:
 - image scanning added to the UI workflow in report mode
 - SBOM generation added to the UI workflow
 - scan and SBOM artifacts are now retained for 30 days
-- image signing still remains
+- keyless Cosign signing has been added for immutable image digests
+- Phase C should be considered complete once the signing workflow run is verified successfully
 
 ### Phase D: Promotion Workflow
 

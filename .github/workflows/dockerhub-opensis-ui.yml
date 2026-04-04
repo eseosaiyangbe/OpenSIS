@@ -28,6 +28,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   docker:
@@ -90,6 +91,7 @@ jobs:
 
 
       - name: Build and push image
+        id: build_push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -129,6 +131,17 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.1
+
+      - name: Sign immutable image digest with Cosign
+        env:
+          IMAGE_REPOSITORY: ${{ env.REGISTRY }}/${{ steps.image_repo.outputs.image_name }}
+          IMAGE_DIGEST: ${{ steps.build_push.outputs.digest }}
+        run: |
+          set -eu
+          cosign sign --yes "${IMAGE_REPOSITORY}@${IMAGE_DIGEST}"
+
       - name: Summarize published tags
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
@@ -139,4 +152,5 @@ jobs:
           - production manifests should stay pinned to immutable tags even though CI can publish mutable aliases
           - Trivy currently runs in report mode while the vulnerability baseline is being established
           - build artifacts now retain a Trivy report and SPDX SBOM for 30 days
+          - immutable image digests are signed with keyless Cosign using GitHub OIDC
           EOF
