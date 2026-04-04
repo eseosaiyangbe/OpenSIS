@@ -31,6 +31,8 @@ It is not full production HA:
 
 Still, the identity model and secret-delivery model are the right ones to learn first.
 
+For the next-level operating model after bootstrap, see [Production-Grade CI/CD Blueprint](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/PRODUCTION_GRADE_CICD_BLUEPRINT.md). That guide captures the target delivery architecture, promotion flow, security controls, and phased CI/CD implementation plan for this repo.
+
 ## Authoritative DB Naming Rule
 
 Treat the openSIS database name as a single source of truth.

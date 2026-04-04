@@ -3,6 +3,7 @@
 This repo uses Argo CD as the GitOps controller for Kubernetes reconciliation.
 
 See also: [From-Scratch Local Bootstrap](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/FROM_SCRATCH_LOCAL_BOOTSTRAP.md)
+See also: [Production-Grade CI/CD Blueprint](/home/theinventor/Desktop/devops/devopseasylearning/OpenSIS/k8s/PRODUCTION_GRADE_CICD_BLUEPRINT.md)
 
 ## What Lives Here
 
