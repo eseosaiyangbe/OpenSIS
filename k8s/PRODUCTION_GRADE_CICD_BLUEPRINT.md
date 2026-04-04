@@ -119,9 +119,10 @@ Current blueprint progress:
   - Kustomize render validation now covers base, dev, prod, cloudflare, and argocd
   - workflow permissions explicitly reviewed and kept at least privilege (`contents: read`)
   - pull-request validation now follows the same scoped trigger model as push validation
-- Phase C: started
+- Phase C: in progress
   - UI image workflow now resolves an immutable `git-<sha>` tag for scanning
   - Trivy image scanning added in report mode to establish a vulnerability baseline before enforcing a hard gate
+  - workflow now retains Trivy scan output and an SPDX SBOM as build artifacts for 30 days
 - Phase D: not started
 - Phase E: not started
 
@@ -466,7 +467,9 @@ Deliverables:
 Current status:
 
 - image scanning added to the UI workflow in report mode
-- SBOM, signing, and retention policy work still remain
+- SBOM generation added to the UI workflow
+- scan and SBOM artifacts are now retained for 30 days
+- image signing still remains
 
 ### Phase D: Promotion Workflow
 

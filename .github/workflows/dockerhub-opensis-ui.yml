@@ -106,10 +106,28 @@ jobs:
         with:
           image-ref: ${{ steps.scan_image.outputs.scan_image }}
           format: table
+          output: trivy-report.txt
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'HIGH,CRITICAL'
           exit-code: '0'
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.scan_image.outputs.scan_image }}
+          format: spdx-json
+          output-file: opensis-ui-sbom.spdx.json
+
+      - name: Upload security artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: opensis-ui-security-artifacts-${{ github.sha }}
+          path: |
+            trivy-report.txt
+            opensis-ui-sbom.spdx.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Summarize published tags
         run: |
@@ -120,4 +138,5 @@ jobs:
           - version tags (`v*`) publish: the version tag itself, `git-<sha>`, mutable `prod`, and `latest`
           - production manifests should stay pinned to immutable tags even though CI can publish mutable aliases
           - Trivy currently runs in report mode while the vulnerability baseline is being established
+          - build artifacts now retain a Trivy report and SPDX SBOM for 30 days
           EOF
