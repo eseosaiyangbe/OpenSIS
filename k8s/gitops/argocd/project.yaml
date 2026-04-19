@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: opensis
+spec:
+  description: GitOps project for openSIS environments managed from this repository.
+  sourceRepos:
+    - ssh://git@github.com/Eseosatheinventor/OpenSIS.git
+  destinations:
+    - namespace: opensis-dev
+      server: https://kubernetes.default.svc
+    - namespace: opensis
+      server: https://kubernetes.default.svc
+    - namespace: cloudflare
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

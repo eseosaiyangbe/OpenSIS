@@ -1,0 +1,7 @@
+services:
+  opensis-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: opensis-ui:local
+    pull_policy: build

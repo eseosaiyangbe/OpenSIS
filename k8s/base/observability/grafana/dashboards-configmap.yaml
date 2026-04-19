@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: opensis-foundation
+        orgId: 1
+        folder: OpenSIS
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards
+  opensis-foundation.json: |
+    {
+      "id": null,
+      "uid": "opensis-foundation",
+      "title": "OpenSIS Foundation",
+      "tags": ["opensis", "kubernetes", "foundation"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Scrape Targets Up",
+          "type": "stat",
+          "datasource": {"type": "prometheus", "uid": "-- Grafana --"},
+          "targets": [{"expr": "sum(up)", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+          "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "textMode": "auto", "colorMode": "value"},
+          "fieldConfig": {"defaults": {}, "overrides": []}
+        },
+        {
+          "id": 2,
+          "title": "openSIS UI Available Replicas",
+          "type": "stat",
+          "targets": [{"expr": "kube_deployment_status_replicas_available{deployment=\"opensis-ui\"}", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+          "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "textMode": "auto", "colorMode": "value"},
+          "fieldConfig": {"defaults": {}, "overrides": []}
+        },
+        {
+          "id": 3,
+          "title": "openSIS DB Ready Replicas",
+          "type": "stat",
+          "targets": [{"expr": "kube_statefulset_status_replicas_ready{statefulset=\"opensis-db\"}", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+          "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "textMode": "auto", "colorMode": "value"},
+          "fieldConfig": {"defaults": {}, "overrides": []}
+        },
+        {
+          "id": 4,
+          "title": "Backup Jobs Failed",
+          "type": "stat",
+          "targets": [{"expr": "sum(kube_job_status_failed{job_name=~\"opensis-db-backup.*\"})", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+          "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "textMode": "auto", "colorMode": "value"},
+          "fieldConfig": {"defaults": {}, "overrides": []}
+        },
+        {
+          "id": 5,
+          "title": "Node CPU Usage %",
+          "type": "timeseries",
+          "targets": [{"expr": "(1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))) * 100", "refId": "A"}],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+          "fieldConfig": {"defaults": {"unit": "percent"}, "overrides": []},
+          "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}}
+        },
+        {
+          "id": 6,
+          "title": "Node Memory Available %",
+          "type": "timeseries",
+          "targets": [{"expr": "(node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100", "refId": "A"}],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+          "fieldConfig": {"defaults": {"unit": "percent"}, "overrides": []},
+          "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}}
+        },
+        {
+          "id": 7,
+          "title": "Pod Restarts (1h)",
+          "type": "timeseries",
+          "targets": [{"expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total[1h]))", "refId": "A"}],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 12},
+          "fieldConfig": {"defaults": {}, "overrides": []},
+          "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}}
+        }
+      ],
+      "templating": {"list": []},
+      "annotations": {"list": []},
+      "time": {"from": "now-1h", "to": "now"}
+    }

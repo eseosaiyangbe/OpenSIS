@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+spec:
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/role: "opensis-alertmanager-dev"
+        vault.hashicorp.com/agent-inject-secret-slack.env: "kv/data/dev/alertmanager-slack"
+        vault.hashicorp.com/agent-inject-template-slack.env: |
+          {{- with secret "kv/data/dev/alertmanager-slack" -}}
+          SLACK_WEBHOOK_URL={{ .Data.data.SLACK_WEBHOOK_URL }}
+          {{- end }}

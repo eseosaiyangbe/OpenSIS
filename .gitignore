@@ -1,0 +1,9 @@
+.env
+command.sh
+cloudflared/credentials.json
+vault/init/init.txt
+vault-agent/*-secrets/*.env
+vault-agent/*-approle/secret_id
+vault-agent/*-approle/role_id
+vault/data/root_token
+vault/data/unseal_key

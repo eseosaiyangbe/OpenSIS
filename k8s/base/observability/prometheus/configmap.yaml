@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ['alertmanager:9093']
+
+    rule_files:
+      - /etc/prometheus/rules/alerts.yml
+
+    scrape_configs:
+      - job_name: prometheus
+        static_configs:
+          - targets: ['localhost:9090']
+
+      - job_name: kube-state-metrics
+        static_configs:
+          - targets: ['kube-state-metrics:8080']
+
+      - job_name: node-exporter
+        static_configs:
+          - targets: ['node-exporter:9100']
+
+      - job_name: mysqld-exporter
+        static_configs:
+          - targets: ['mysqld-exporter:9104']
+
+      - job_name: blackbox-http
+        metrics_path: /probe
+        params:
+          module: [http_2xx]
+        static_configs:
+          - targets:
+              - http://opensis-ui
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: __param_target
+          - source_labels: [__param_target]
+            target_label: instance
+          - target_label: __address__
+            replacement: blackbox-exporter:9115
+
+      - job_name: blackbox-tcp
+        metrics_path: /probe
+        params:
+          module: [tcp_connect]
+        static_configs:
+          - targets:
+              - opensis-db:3306
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: __param_target
+          - source_labels: [__param_target]
+            target_label: instance
+          - target_label: __address__
+            replacement: blackbox-exporter:9115
+  alerts.yml: |
+    groups:
+      - name: opensis-foundation
+        rules:
+          - alert: OpenSISUiUnavailable
+            expr: kube_deployment_status_replicas_available{deployment="opensis-ui"} < 1
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "openSIS UI has no available replicas"
+              description: "Deployment opensis-ui has been unavailable for more than 2 minutes."
+
+          - alert: OpenSISDbUnavailable
+            expr: kube_statefulset_status_replicas_ready{statefulset="opensis-db"} < 1
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "openSIS database has no ready replicas"
+              description: "StatefulSet opensis-db has been unavailable for more than 2 minutes."
+
+          - alert: OpenSISBackupJobFailed
+            expr: kube_job_status_failed{job_name=~"opensis-db-backup.*"} > 0
+            for: 0m
+            labels:
+              severity: warning
+            annotations:
+              summary: "openSIS backup job failed"
+              description: "A backup job matching opensis-db-backup has reported a failure."
+
+          - alert: BlackboxHttpProbeFailing
+            expr: probe_success{job="blackbox-http"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "openSIS HTTP probe failing"
+              description: "The HTTP probe for {{ $labels.instance }} is failing."
+
+          - alert: BlackboxTcpProbeFailing
+            expr: probe_success{job="blackbox-tcp"} == 0
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "openSIS TCP probe failing"
+              description: "The TCP probe for {{ $labels.instance }} is failing."
+
+          - alert: MysqldExporterDown
+            expr: up{job="mysqld-exporter"} == 0
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "mysqld-exporter target down"
+              description: "Prometheus cannot scrape mysqld-exporter."
+
+          - alert: PrometheusTargetDown
+            expr: up{job=~"prometheus|kube-state-metrics|node-exporter|mysqld-exporter|blackbox-http|blackbox-tcp"} == 0
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Prometheus scrape target down"
+              description: "Target {{ $labels.job }} on {{ $labels.instance }} has been down for more than 2 minutes."

@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysqld-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysqld-exporter
+  template:
+    metadata:
+      labels:
+        app: mysqld-exporter
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-pre-populate-only: "true"
+        vault.hashicorp.com/auth-path: "auth/kubernetes"
+        vault.hashicorp.com/tls-secret: "vault-agent-ca"
+        vault.hashicorp.com/ca-cert: "/vault/tls/ca.crt"
+        vault.hashicorp.com/role: "opensis-mysqld-exporter"
+        vault.hashicorp.com/secret-volume-path: "/run/secrets"
+        vault.hashicorp.com/agent-inject-secret-db.env: "kv/data/production/opensis-db"
+        vault.hashicorp.com/agent-inject-template-db.env: |
+          {{- with secret "kv/data/production/opensis-db" -}}
+          MYSQL_ROOT_PASSWORD={{ .Data.data.MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE={{ .Data.data.MYSQL_DATABASE }}
+          MYSQL_USER={{ .Data.data.MYSQL_USER }}
+          MYSQL_PASSWORD={{ .Data.data.MYSQL_PASSWORD }}
+          {{- end }}
+    spec:
+      serviceAccountName: mysqld-exporter
+      containers:
+        - name: mysqld-exporter
+          image: prom/mysqld-exporter:v0.16.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - /usr/local/bin/run-mysqld-exporter.sh
+          ports:
+            - containerPort: 9104
+              name: metrics
+          volumeMounts:
+            - name: exporter-config
+              mountPath: /usr/local/bin/run-mysqld-exporter.sh
+              subPath: run-mysqld-exporter.sh
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 9104
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9104
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+      volumes:
+        - name: exporter-config
+          configMap:
+            name: mysqld-exporter-config
+            defaultMode: 0755

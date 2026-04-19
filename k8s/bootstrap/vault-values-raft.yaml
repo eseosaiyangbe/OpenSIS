@@ -1,0 +1,70 @@
+# Future-looking Vault integrated storage (Raft) template.
+#
+# This is intentionally not the current live configuration for the local lab.
+# It assumes:
+# - at least 3 Kubernetes nodes so the chart's anti-affinity can place 3 Vault pods
+# - a proper auto-unseal provider such as cloud KMS or an external transit cluster
+# - the existing Vault TLS assets from k8s/bootstrap/vault/tls-cert-manager.yaml
+#
+# Do not apply this file directly to the current single-node cluster without an
+# explicit migration plan.
+
+global:
+  enabled: true
+  tlsDisable: false
+
+server:
+  enabled: true
+  extraEnvironmentVars:
+    VAULT_CACERT: /vault/userconfig/vault-server-tls/ca.crt
+  volumes:
+    - name: userconfig-vault-server-tls
+      secret:
+        defaultMode: 420
+        secretName: vault-server-tls
+  volumeMounts:
+    - mountPath: /vault/userconfig/vault-server-tls
+      name: userconfig-vault-server-tls
+      readOnly: true
+  ha:
+    enabled: true
+    replicas: 3
+    raft:
+      enabled: true
+      setNodeId: true
+      config: |
+        ui = true
+        api_addr = "https://vault.vault.svc:8200"
+        cluster_addr = "https://HOSTNAME.vault-internal:8201"
+
+        listener "tcp" {
+          address            = "[::]:8200"
+          cluster_address    = "[::]:8201"
+          tls_cert_file      = "/vault/userconfig/vault-server-tls/tls.crt"
+          tls_key_file       = "/vault/userconfig/vault-server-tls/tls.key"
+          tls_client_ca_file = "/vault/userconfig/vault-server-tls/ca.crt"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        }
+
+        service_registration "kubernetes" {}
+  dataStorage:
+    enabled: true
+    size: 10Gi
+
+injector:
+  enabled: true
+  certs:
+    secretName: injector-tls
+  webhook:
+    annotations:
+      cert-manager.io/inject-ca-from: vault/injector-certificate
+
+ui:
+  enabled: true
+  serviceType: ClusterIP
+
+authDelegator:
+  enabled: true

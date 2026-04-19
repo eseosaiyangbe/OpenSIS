@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: opensis-ui
+  annotations:
+    cert-manager.io/cluster-issuer: local-selfsigned
+spec:
+  tls:
+    - hosts:
+        - opensis.dev.local
+      secretName: opensis-ui-dev-tls
+  rules:
+    - host: opensis.dev.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: opensis-ui
+                port:
+                  number: 80

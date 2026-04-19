@@ -1,0 +1,74 @@
+groups:
+  - name: opensis-stack
+    rules:
+      - alert: PrometheusTargetDown
+        expr: up{job=~"prometheus|node|cadvisor|mariadb|blackbox-http|blackbox-tcp"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus target down"
+          description: "Target {{ $labels.job }} on {{ $labels.instance }} has been down for more than 2 minutes."
+
+      - alert: OpenSISProbeFailing
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "openSIS endpoint failing probe"
+          description: "The blackbox probe for {{ $labels.instance }} is failing."
+
+      - alert: HostLowMemory
+        expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host low memory"
+          description: "Available host memory is below 10%."
+
+      - alert: HostDiskLow
+        expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) < 0.15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host disk low"
+          description: "Filesystem {{ $labels.mountpoint }} has less than 15% free space."
+
+      - alert: HighCpuLoad
+        expr: avg by (instance) (rate(node_cpu_seconds_total{mode!="idle"}[5m])) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU load"
+          description: "Host CPU usage has been above 85% for 10 minutes."
+
+      - alert: HighMariaDBConnections
+        expr: mysql_global_status_threads_connected / mysql_global_variables_max_connections > 0.80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MariaDB connections high"
+          description: "MariaDB is using more than 80% of max_connections."
+
+      - alert: MariaDBSlowQueries
+        expr: increase(mysql_global_status_slow_queries[10m]) > 5
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MariaDB slow queries detected"
+          description: "More than 5 slow queries were recorded in the last 10 minutes."
+
+      - alert: ContainerHighMemory
+        expr: (container_memory_working_set_bytes{id!="/",container!=""} / container_spec_memory_limit_bytes{id!="/",container!=""}) > 0.90 and container_spec_memory_limit_bytes{id!="/",container!=""} > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container memory high"
+          description: "Container {{ $labels.container }} is above 90% of its memory limit."

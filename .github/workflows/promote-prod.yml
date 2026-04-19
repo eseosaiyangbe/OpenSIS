@@ -1,0 +1,146 @@
+name: Promote openSIS UI To Prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Immutable UI image tag to promote (for example git-5100dfd)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: docker.io
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Resolve image repository
+        id: image_repo
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_REPOSITORY: ${{ vars.DOCKERHUB_REPOSITORY }}
+        run: |
+          set -eu
+
+          if [ -z "${DOCKERHUB_USERNAME:-}" ]; then
+            echo "DOCKERHUB_USERNAME GitHub variable is required" >&2
+            exit 1
+          fi
+
+          IMAGE_REPOSITORY="${DOCKERHUB_REPOSITORY:-opensis-ui}"
+          IMAGE_NAME="${DOCKERHUB_USERNAME}/${IMAGE_REPOSITORY}"
+          echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate immutable image tag format
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -eu
+          case "$IMAGE_TAG" in
+            git-*) ;;
+            *)
+              echo "Prod promotion currently only accepts immutable git-<sha> tags" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Verify image exists in registry
+        env:
+          IMAGE_NAME: ${{ env.REGISTRY }}/${{ steps.image_repo.outputs.image_name }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -eu
+          docker manifest inspect "${IMAGE_NAME}:${IMAGE_TAG}" > /dev/null
+
+      - name: Update prod overlay image tag
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -eu
+          python3 - <<'PY_INNER'
+          from pathlib import Path
+          import os
+
+          path = Path('k8s/overlays/prod/kustomization.yaml')
+          lines = path.read_text().splitlines()
+          image_tag = os.environ['IMAGE_TAG']
+
+          seen_image = False
+          updated = False
+          for index, line in enumerate(lines):
+              if line.strip() == '- name: docker.io/eseosaiyangbe/opensis-ui':
+                  seen_image = True
+                  continue
+              if seen_image and line.strip().startswith('newTag:'):
+                  indent = line[:len(line) - len(line.lstrip())]
+                  lines[index] = f'{indent}newTag: {image_tag}'
+                  updated = True
+                  break
+
+          if not updated:
+              raise SystemExit('Failed to update prod image tag in kustomization.yaml')
+
+          path.write_text('\n'.join(lines) + '\n')
+          PY_INNER
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.0
+
+      - name: Run prod kustomize render check
+        run: kubectl kustomize k8s/overlays/prod > /dev/null
+
+      - name: Create prod promotion pull request
+        uses: peter-evans/create-pull-request@v8.1.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: Promote prod UI image to ${{ inputs.image_tag }}
+          title: Promote prod UI image to ${{ inputs.image_tag }}
+          body: |
+            ## Promotion Summary
+
+            - target image tag: `${{ inputs.image_tag }}`
+            - workflow: `Promote openSIS UI To Prod`
+            - promotion style: Git change only
+            - cluster mutation: none
+
+            ## Validation Performed
+
+            - immutable tag format check
+            - Docker Hub image existence check
+            - prod overlay render check with `kubectl kustomize`
+
+            ## Next Step
+
+            - review and merge this PR to let Argo CD reconcile prod from Git
+          branch: ci/promote-prod-${{ inputs.image_tag }}
+          delete-branch: true
+          labels: |
+            release
+            prod-promotion
+          base: main
+
+      - name: Summarize promotion outcome
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF_SUMMARY'
+          ## Prod promotion workflow
+
+          - immutable prod promotion tag requested: `${{ inputs.image_tag }}`
+          - registry image existence was verified before changing Git
+          - prod overlay render was validated with `kubectl kustomize`
+          - a promotion pull request was created instead of mutating the cluster directly
+          EOF_SUMMARY

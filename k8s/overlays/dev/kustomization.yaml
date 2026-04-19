@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: opensis-dev
+resources:
+  - ../../base
+  - opensis-session-redis-deployment.yaml
+  - opensis-session-redis-service.yaml
+  - opensis-session-redis-networkpolicy.yaml
+  - vault-agent-ca-secret.yaml
+patches:
+  - path: opensis-ui-configmap-patch.yaml
+  - path: opensis-ui-deployment-patch.yaml
+  - path: opensis-db-statefulset-patch.yaml
+  - path: opensis-ui-ingress-patch.yaml
+  - path: opensis-db-backup-cronjob-patch.yaml
+  - path: opensis-db-backup-pvc-patch.yaml
+  - path: kube-state-metrics-clusterrolebinding-patch.yaml
+  - path: mysqld-exporter-deployment-patch.yaml
+  - path: alertmanager-deployment-patch.yaml
+  - path: grafana-deployment-patch.yaml
+images:
+  - name: docker.io/eseosaiyangbe/opensis-ui
+    newTag: main

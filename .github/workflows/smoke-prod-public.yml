@@ -1,0 +1,60 @@
+name: Smoke Test Public Prod Edge
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-public-prod:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check public prod root and installer redirect
+        run: |
+          set -euo pipefail
+
+          ROOT_HEADERS='public-root-headers.txt'
+          INSTALL_HEADERS='public-install-headers.txt'
+
+          ROOT_CODE=$(curl -k -sS -o /dev/null -D "$ROOT_HEADERS" -w '%{http_code}' https://opensis.raysosglobal.com/)
+          INSTALL_CODE=$(curl -k -sS -o /dev/null -D "$INSTALL_HEADERS" -w '%{http_code}' https://opensis.raysosglobal.com/install/)
+          INSTALL_LOCATION=$(awk 'BEGIN{IGNORECASE=1} /^location:/ {print $2}' "$INSTALL_HEADERS" | tr -d '\r')
+
+          {
+            echo '## Public prod smoke result'
+            echo
+            printf -- '- root status: %s\n' "$ROOT_CODE"
+            printf -- '- installer status: %s\n' "$INSTALL_CODE"
+            printf -- '- installer location: %s\n' "${INSTALL_LOCATION:-missing}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$ROOT_CODE" != '200' ]; then
+            echo 'Unexpected root status code' >&2
+            cat "$ROOT_HEADERS" >&2
+            exit 1
+          fi
+
+          if [ "$INSTALL_CODE" != '302' ]; then
+            echo 'Unexpected installer status code' >&2
+            cat "$INSTALL_HEADERS" >&2
+            exit 1
+          fi
+
+          if [ "$INSTALL_LOCATION" != '/index.php' ]; then
+            echo 'Unexpected installer redirect location' >&2
+            cat "$INSTALL_HEADERS" >&2
+            exit 1
+          fi
+
+      - name: Upload public smoke headers
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: public-prod-smoke-${{ github.run_id }}
+          path: |
+            public-root-headers.txt
+            public-install-headers.txt
+          retention-days: 14

@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: opensis-db
+spec:
+  serviceName: opensis-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensis-db
+  template:
+    metadata:
+      labels:
+        app: opensis-db
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-pre-populate-only: "true"
+        vault.hashicorp.com/auth-path: "auth/kubernetes"
+        vault.hashicorp.com/tls-secret: "vault-agent-ca"
+        vault.hashicorp.com/ca-cert: "/vault/tls/ca.crt"
+        vault.hashicorp.com/role: "opensis-db"
+        vault.hashicorp.com/secret-volume-path: "/run/secrets"
+        vault.hashicorp.com/agent-inject-secret-db.env: "kv/data/production/opensis-db"
+        vault.hashicorp.com/agent-inject-template-db.env: |
+          {{- with secret "kv/data/production/opensis-db" -}}
+          MYSQL_ROOT_PASSWORD={{ .Data.data.MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE={{ .Data.data.MYSQL_DATABASE }}
+          MYSQL_USER={{ .Data.data.MYSQL_USER }}
+          MYSQL_PASSWORD={{ .Data.data.MYSQL_PASSWORD }}
+          {{- end }}
+    spec:
+      serviceAccountName: opensis-db
+      volumes:
+        - name: db-config
+          configMap:
+            name: opensis-db-config
+            defaultMode: 0755
+      containers:
+        - name: mariadb
+          image: mariadb:10.11.7
+          imagePullPolicy: IfNotPresent
+          command:
+            - /usr/local/bin/mariadb-entrypoint.sh
+          ports:
+            - containerPort: 3306
+              name: mysql
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - . /run/secrets/db.env && mysqladmin ping -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" --silent
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 3306
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+            - name: db-config
+              mountPath: /etc/mysql/conf.d/strict_mode.cnf
+              subPath: strict_mode.cnf
+            - name: db-config
+              mountPath: /usr/local/bin/mariadb-entrypoint.sh
+              subPath: mariadb-entrypoint.sh
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+      restartPolicy: Always
+  updateStrategy:
+    type: RollingUpdate
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi

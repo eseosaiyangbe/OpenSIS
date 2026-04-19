@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensis-ui
+spec:
+  replicas: 2
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/role: opensis-app
+        vault.hashicorp.com/agent-inject-secret-app.env: kv/data/production/opensis-app
+        vault.hashicorp.com/agent-inject-template-app.env: |
+          {{- with secret "kv/data/production/opensis-app" -}}
+          MYSQL_DATABASE={{ .Data.data.MYSQL_DATABASE }}
+          MYSQL_USER={{ .Data.data.MYSQL_USER }}
+          MYSQL_PASSWORD={{ .Data.data.MYSQL_PASSWORD }}
+          DB_HOST={{ .Data.data.DB_HOST }}
+          DB_PORT={{ .Data.data.DB_PORT }}
+          {{- end }}
+    spec:
+      containers:
+        - name: opensis-ui
+          resources:
+            requests:
+              cpu: 500m
+              memory: 768Mi
+            limits:
+              cpu: "2"
+              memory: 1536Mi

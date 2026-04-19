@@ -1,0 +1,5 @@
+# Production-critical paths require repository owner review.
+# Pair this with branch protection on `main` and "Require review from Code Owners".
+
+/.github/workflows/promote-prod.yml @eseosaiyangbe
+/k8s/overlays/prod/ @eseosaiyangbe

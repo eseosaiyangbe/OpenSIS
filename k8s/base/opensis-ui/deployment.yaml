@@ -1,0 +1,175 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensis-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensis-ui
+  template:
+    metadata:
+      labels:
+        app: opensis-ui
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-pre-populate-only: "true"
+        vault.hashicorp.com/auth-path: "auth/kubernetes"
+        vault.hashicorp.com/tls-secret: "vault-agent-ca"
+        vault.hashicorp.com/ca-cert: "/vault/tls/ca.crt"
+        vault.hashicorp.com/role: "opensis-app"
+        vault.hashicorp.com/secret-volume-path: "/run/secrets"
+        vault.hashicorp.com/agent-inject-secret-app.env: "kv/data/production/opensis-app"
+        vault.hashicorp.com/agent-inject-template-app.env: |
+          {{- with secret "kv/data/production/opensis-app" -}}
+          MYSQL_DATABASE={{ .Data.data.MYSQL_DATABASE }}
+          MYSQL_USER={{ .Data.data.MYSQL_USER }}
+          MYSQL_PASSWORD={{ .Data.data.MYSQL_PASSWORD }}
+          DB_HOST={{ .Data.data.DB_HOST }}
+          DB_PORT={{ .Data.data.DB_PORT }}
+          {{- end }}
+    spec:
+      serviceAccountName: opensis-ui
+      containers:
+        - name: opensis-ui
+          image: docker.io/eseosaiyangbe/opensis-ui:main
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              SECRETS_FILE="${APP_SECRETS_FILE:-/run/secrets/app.env}"
+              WAIT_TIMEOUT="${APP_SECRETS_WAIT_TIMEOUT:-60}"
+
+              echo "[entrypoint] Waiting for Vault-rendered application secrets..."
+              timeout="$WAIT_TIMEOUT"
+              while [ "$timeout" -gt 0 ]; do
+                if [ -s "$SECRETS_FILE" ] && grep -q DB_HOST "$SECRETS_FILE"; then
+                  break
+                fi
+                sleep 2
+                timeout=$((timeout-2))
+              done
+
+              if [ "$timeout" -eq 0 ]; then
+                echo "[entrypoint] ERROR: Vault secrets not available after ${WAIT_TIMEOUT} seconds."
+                exit 1
+              fi
+
+              echo "[entrypoint] Secrets file detected."
+              set -a
+              . "$SECRETS_FILE"
+              set +a
+
+              : "${DB_HOST:?Missing DB_HOST}"
+              : "${DB_PORT:?Missing DB_PORT}"
+              : "${MYSQL_DATABASE:?Missing MYSQL_DATABASE}"
+              : "${MYSQL_USER:?Missing MYSQL_USER}"
+              : "${MYSQL_PASSWORD:?Missing MYSQL_PASSWORD}"
+
+              cat > /var/www/openSIS/Data.php <<DATAEOF
+              <?php
+              \$DatabaseType = 'mysqli';
+              \$DatabaseServer = '${DB_HOST}';
+              \$DatabaseUsername = '${MYSQL_USER}';
+              \$DatabasePassword = '${MYSQL_PASSWORD}';
+              \$DatabaseName = '${MYSQL_DATABASE}';
+              \$DatabasePort = '${DB_PORT}';
+              ?>
+              DATAEOF
+
+              chown www-data:www-data /var/www/openSIS/Data.php
+              chmod 644 /var/www/openSIS/Data.php
+
+              SESSION_CONF_FILE="${PHP_SESSION_CONF_FILE:-/usr/local/etc/php/conf.d/zz-session-runtime.ini}"
+              : > "$SESSION_CONF_FILE"
+
+              if [ -n "${PHP_SESSION_SAVE_HANDLER:-}" ]; then
+                echo "session.save_handler = ${PHP_SESSION_SAVE_HANDLER}" >> "$SESSION_CONF_FILE"
+              fi
+
+              if [ -n "${PHP_SESSION_SAVE_PATH:-}" ]; then
+                echo "session.save_path = \"${PHP_SESSION_SAVE_PATH}\"" >> "$SESSION_CONF_FILE"
+              fi
+
+              if [ -n "${PHP_SESSION_COOKIE_SECURE:-}" ]; then
+                echo "session.cookie_secure = ${PHP_SESSION_COOKIE_SECURE}" >> "$SESSION_CONF_FILE"
+              fi
+
+              if [ -n "${PHP_SESSION_COOKIE_SAMESITE:-}" ]; then
+                echo "session.cookie_samesite = ${PHP_SESSION_COOKIE_SAMESITE}" >> "$SESSION_CONF_FILE"
+              fi
+
+              echo "[entrypoint] Environment successfully loaded."
+              exec docker-php-entrypoint apache2-foreground
+          env:
+            - name: APP_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: opensis-ui-config
+                  key: APP_ENV
+            - name: APP_SECRETS_FILE
+              value: /run/secrets/app.env
+            - name: APP_SECRETS_WAIT_TIMEOUT
+              value: "60"
+            - name: PHP_SESSION_SAVE_HANDLER
+              valueFrom:
+                configMapKeyRef:
+                  name: opensis-ui-config
+                  key: PHP_SESSION_SAVE_HANDLER
+                  optional: true
+            - name: PHP_SESSION_SAVE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: opensis-ui-config
+                  key: PHP_SESSION_SAVE_PATH
+                  optional: true
+            - name: PHP_SESSION_COOKIE_SECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: opensis-ui-config
+                  key: PHP_SESSION_COOKIE_SECURE
+                  optional: true
+            - name: PHP_SESSION_COOKIE_SAMESITE
+              valueFrom:
+                configMapKeyRef:
+                  name: opensis-ui-config
+                  key: PHP_SESSION_COOKIE_SAMESITE
+                  optional: true
+          ports:
+            - containerPort: 80
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+              httpHeaders:
+                - name: User-Agent
+                  value: Mozilla/5.0
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+              httpHeaders:
+                - name: User-Agent
+                  value: Mozilla/5.0
+            initialDelaySeconds: 40
+            periodSeconds: 20
+          startupProbe:
+            httpGet:
+              path: /
+              port: 80
+              httpHeaders:
+                - name: User-Agent
+                  value: Mozilla/5.0
+            failureThreshold: 30
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi

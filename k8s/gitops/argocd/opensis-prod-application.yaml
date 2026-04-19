@@ -1,0 +1,16 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opensis-prod
+spec:
+  project: opensis
+  source:
+    repoURL: ssh://git@github.com/Eseosatheinventor/OpenSIS.git
+    targetRevision: main
+    path: k8s/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: opensis
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

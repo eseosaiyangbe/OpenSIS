@@ -1,0 +1,156 @@
+name: Build And Push openSIS UI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+    tags:
+      - "v*"
+    paths:
+      - 'Dockerfile'
+      - 'app/**'
+      - 'docker/**'
+      - 'scripts/docker-entrypoint-vault.sh'
+  workflow_dispatch:
+    inputs:
+      publish_dev_alias:
+        description: Also publish the mutable dev alias
+        required: false
+        type: boolean
+        default: true
+      publish_prod_alias:
+        description: Also publish the mutable prod/latest aliases
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: docker.io
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Resolve image repository
+        id: image_repo
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_REPOSITORY: ${{ vars.DOCKERHUB_REPOSITORY }}
+        run: |
+          set -eu
+
+          if [ -z "${DOCKERHUB_USERNAME:-}" ]; then
+            echo "DOCKERHUB_USERNAME GitHub variable is required" >&2
+            exit 1
+          fi
+
+          IMAGE_REPOSITORY="${DOCKERHUB_REPOSITORY:-opensis-ui}"
+          IMAGE_NAME="${DOCKERHUB_USERNAME}/${IMAGE_REPOSITORY}"
+          echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.image_repo.outputs.image_name }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=git-
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.publish_dev_alias) }}
+            type=raw,value=prod,enable=${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_prod_alias) }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_prod_alias) }}
+
+      - name: Resolve immutable scan tag
+        id: scan_image
+        run: |
+          set -eu
+          SCAN_IMAGE=$(printf '%s\n' "${{ steps.meta.outputs.tags }}" | grep ':git-' | head -n 1)
+          if [ -z "${SCAN_IMAGE:-}" ]; then
+            echo "Unable to resolve immutable git-<sha> tag for scanning" >&2
+            exit 1
+          fi
+          echo "scan_image=$SCAN_IMAGE" >> "$GITHUB_OUTPUT"
+
+
+      - name: Build and push image
+        id: build_push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP_VERSION=${{ github.ref_name }}
+            VCS_REF=${{ github.sha }}
+
+      - name: Run Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: ${{ steps.scan_image.outputs.scan_image }}
+          format: table
+          output: trivy-report.txt
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '0'
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.scan_image.outputs.scan_image }}
+          format: spdx-json
+          output-file: opensis-ui-sbom.spdx.json
+
+      - name: Upload security artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: opensis-ui-security-artifacts-${{ github.sha }}
+          path: |
+            trivy-report.txt
+            opensis-ui-sbom.spdx.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.1
+
+      - name: Sign immutable image digest with Cosign
+        env:
+          IMAGE_REPOSITORY: ${{ env.REGISTRY }}/${{ steps.image_repo.outputs.image_name }}
+          IMAGE_DIGEST: ${{ steps.build_push.outputs.digest }}
+        run: |
+          set -eu
+          cosign sign --yes "${IMAGE_REPOSITORY}@${IMAGE_DIGEST}"
+
+      - name: Summarize published tags
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## openSIS UI image policy
+
+          - main branch publishes: `main`, `git-<sha>`, and mutable `dev`
+          - version tags (`v*`) publish: the version tag itself, `git-<sha>`, mutable `prod`, and `latest`
+          - production manifests should stay pinned to immutable tags even though CI can publish mutable aliases
+          - Trivy currently runs in report mode while the vulnerability baseline is being established
+          - build artifacts now retain a Trivy report and SPDX SBOM for 30 days
+          - immutable image digests are signed with keyless Cosign using GitHub OIDC
+          EOF

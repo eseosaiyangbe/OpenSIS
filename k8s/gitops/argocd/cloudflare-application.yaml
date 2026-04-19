@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opensis-cloudflare
+spec:
+  project: opensis
+  source:
+    repoURL: ssh://git@github.com/Eseosatheinventor/OpenSIS.git
+    targetRevision: main
+    path: k8s/platform/cloudflare
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cloudflare
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
