@@ -49,13 +49,13 @@ If you are on macOS:
 
 ## 2. Start The Stack
 
-Use the default published dev image:
+Use the wrapper script for the most portable local start:
 
 ```bash
-docker compose up -d
-or
 ./scripts/compose-start.sh
 ```
+
+On Linux AMD64, this uses the published `docker.io/eseosaiyangbe/opensis-ui:dev` image. On Apple Silicon/ARM64, it automatically uses `docker-compose.buildlocal.yaml` and builds `opensis-ui` locally because the published dev image does not currently include a `linux/arm64/v8` manifest.
 
 Check status:
 
@@ -81,6 +81,12 @@ or
 ```
 
 This overrides the default image pull and builds `opensis-ui` locally.
+
+To force the published image path on a compatible platform:
+
+```bash
+./scripts/compose-start.sh --pull-image
+```
 
 ## 5. Optional Edge Mode
 

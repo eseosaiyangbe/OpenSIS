@@ -12,8 +12,10 @@ cd /path/to/OpenSIS
 # Clean start (removes old data)
 docker compose down -v && docker compose up -d
 
-# Default stack: Vault + backend + UI (pulls docker.io/eseosaiyangbe/opensis-ui:dev)
-docker compose up -d
+# Default stack through the wrapper script.
+# Linux AMD64 pulls docker.io/eseosaiyangbe/opensis-ui:dev.
+# Apple Silicon/ARM64 builds opensis-ui locally to avoid image manifest errors.
+./scripts/compose-start.sh
 
 # Optional local UI build instead of pulling from Docker Hub
 docker compose -f docker-compose.yaml -f docker-compose.buildlocal.yaml up -d --build

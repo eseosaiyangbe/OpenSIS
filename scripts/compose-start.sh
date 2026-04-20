@@ -9,6 +9,7 @@ Start the local Docker Compose stack.
 
 Options:
   --build-local   Build the openSIS UI locally instead of pulling the dev image
+  --pull-image    Pull the published openSIS UI image even on ARM hosts
   --edge          Include edge services (Traefik and Cloudflare Tunnel)
   --skip-precheck Skip ./scripts/precheck.sh
   -h, --help      Show this help message
@@ -24,6 +25,7 @@ require_repo_root() {
 
 main() {
   local build_local=0
+  local pull_image=0
   local edge=0
   local skip_precheck=0
   local -a compose_cmd=(docker compose)
@@ -32,6 +34,10 @@ main() {
     case "$1" in
       --build-local)
         build_local=1
+        shift
+        ;;
+      --pull-image)
+        pull_image=1
         shift
         ;;
       --edge)
@@ -56,6 +62,14 @@ main() {
   done
 
   require_repo_root
+
+  if [[ "$build_local" -eq 0 && "$pull_image" -eq 0 && "$(uname -m)" == "arm64" ]]; then
+    build_local=1
+    echo "Detected Apple Silicon/ARM64 host."
+    echo "The published docker.io/eseosaiyangbe/opensis-ui:dev image is not available for linux/arm64/v8, so this run will build opensis-ui locally."
+    echo "Use --pull-image to force the published image path on a compatible platform."
+    echo
+  fi
 
   if [[ "$skip_precheck" -eq 0 ]]; then
     ./scripts/precheck.sh

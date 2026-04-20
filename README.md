@@ -105,14 +105,14 @@ git clone https://github.com/eseosaiyangbe/OpenSIS.git
 cd OpenSIS
 ```
 
-Then run the local stack with published images:
+Then run the local stack:
 
 ```bash
 ./scripts/precheck.sh
-docker compose up -d
-or
 ./scripts/compose-start.sh
 ```
+
+On Linux AMD64, the script uses the published `docker.io/eseosaiyangbe/opensis-ui:dev` image by default. On Apple Silicon/ARM64, the script automatically builds `opensis-ui` locally because the published dev tag does not currently include a `linux/arm64/v8` image.
 
 Open:
 
@@ -133,6 +133,12 @@ If you want to build the UI locally instead of pulling the published dev image:
 docker compose -f docker-compose.yaml -f docker-compose.buildlocal.yaml up -d --build
 or
 ./scripts/compose-start.sh --build-local
+```
+
+If you are on a compatible platform and explicitly want to force the published image path:
+
+```bash
+./scripts/compose-start.sh --pull-image
 ```
 
 ## High-Level Architecture
