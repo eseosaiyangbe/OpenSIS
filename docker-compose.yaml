@@ -229,6 +229,40 @@ services:
     networks:
       - backend-network
 
+  # -----------------------------
+  # Vault Synthetic Metrics Exporter
+  # -----------------------------
+  vault-synthetic-exporter:
+    image: python:3.12-alpine
+    container_name: opensis-vault-synthetic-exporter
+    restart: unless-stopped
+
+    depends_on:
+      vault:
+        condition: service_healthy
+      vault-bootstrap:
+        condition: service_completed_successfully
+
+    command: ["python", "/opt/opensis/vault-synthetic-exporter.py"]
+
+    environment:
+      APP_ENV: ${APP_ENV}
+      VAULT_ADDR: http://vault:8200
+      PORT: 9105
+
+    volumes:
+      - ./observability/vault-synthetic-exporter.py:/opt/opensis/vault-synthetic-exporter.py:ro
+      - app_runtime_approle:/vault/approle-app:ro
+      - db_runtime_approle:/vault/approle-db:ro
+
+    expose:
+      - "9105"
+
+    networks:
+      backend-network:
+      observability-net:
+        aliases:
+          - opensis-vault-checker
 
   # -----------------------------
   # Database
