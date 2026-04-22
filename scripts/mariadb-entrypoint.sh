@@ -24,6 +24,8 @@ reconcile_grants() {
   local root_password="${MYSQL_ROOT_PASSWORD:?Missing MYSQL_ROOT_PASSWORD}"
   local app_user="${MYSQL_USER:?Missing MYSQL_USER}"
   local app_password="${MYSQL_PASSWORD:?Missing MYSQL_PASSWORD}"
+  local exporter_user="${MYSQL_EXPORTER_USER:-opensis_exporter}"
+  local exporter_password="${MYSQL_EXPORTER_PASSWORD:-change-me-exporter}"
   local bootstrap_db="${MYSQL_DATABASE:-}"
 
   local candidates=()
@@ -47,6 +49,16 @@ reconcile_grants() {
       mysql -u root -p"$root_password" -e "$grant_sql"
     fi
   done
+
+  if [ -n "$exporter_user" ] && [ -n "$exporter_password" ]; then
+    local exporter_user_sql exporter_password_sql exporter_grant_sql
+    exporter_user_sql="$(sql_escape_string "$exporter_user")"
+    exporter_password_sql="$(sql_escape_string "$exporter_password")"
+    exporter_grant_sql="$(printf "CREATE USER IF NOT EXISTS '%s'@'%%' IDENTIFIED BY '%s'; GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO '%s'@'%%'; FLUSH PRIVILEGES;" "$exporter_user_sql" "$exporter_password_sql" "$exporter_user_sql")"
+
+    echo "[mariadb-entrypoint] Ensuring exporter grants for ${exporter_user}"
+    mysql -u root -p"$root_password" -e "$exporter_grant_sql"
+  fi
 }
 
 /usr/local/bin/docker-entrypoint.sh mysqld &

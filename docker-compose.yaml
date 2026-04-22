@@ -250,6 +250,10 @@ services:
       - ./scripts/mariadb-entrypoint.sh:/usr/local/bin/mariadb-entrypoint.sh:ro
       - db_runtime_secrets:/run/secrets:ro
 
+    environment:
+      MYSQL_EXPORTER_USER: ${MYSQL_EXPORTER_USER:-opensis_exporter}
+      MYSQL_EXPORTER_PASSWORD: ${MYSQL_EXPORTER_PASSWORD:-change-me-exporter}
+
     healthcheck:
       test:
         [
@@ -262,6 +266,36 @@ services:
 
     networks:
       - backend-network
+
+  # -----------------------------
+  # MariaDB Metrics Exporter
+  # -----------------------------
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.17.2
+    container_name: opensis-mysqld-exporter
+    restart: unless-stopped
+
+    depends_on:
+      opensis-db:
+        condition: service_healthy
+
+    entrypoint: ["/usr/local/bin/mysqld-exporter-entrypoint.sh"]
+
+    environment:
+      MYSQL_EXPORTER_USER: ${MYSQL_EXPORTER_USER:-opensis_exporter}
+      MYSQL_EXPORTER_PASSWORD: ${MYSQL_EXPORTER_PASSWORD:-change-me-exporter}
+
+    volumes:
+      - ./observability/mysqld-exporter-entrypoint.sh:/usr/local/bin/mysqld-exporter-entrypoint.sh:ro
+
+    expose:
+      - "9104"
+
+    networks:
+      backend-network:
+      observability-net:
+        aliases:
+          - opensis-mysqld-exporter
 
   # -----------------------------
   # Opensis UI
