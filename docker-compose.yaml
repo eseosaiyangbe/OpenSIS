@@ -378,6 +378,31 @@ services:
         aliases:
           - opensis-ui
 
+  # -----------------------------
+  # Apache Runtime Metrics Exporter
+  # -----------------------------
+  apache-exporter:
+    image: lusotycoon/apache-exporter:v1.0.10
+    container_name: opensis-apache-exporter
+    restart: unless-stopped
+
+    depends_on:
+      opensis-ui:
+        condition: service_healthy
+
+    command:
+      - "--scrape_uri=http://opensis-ui/server-status?auto"
+      - "--web.listen-address=:9117"
+      - "--custom_headers=X-OpenSIS-Metrics:apache-exporter"
+
+    expose:
+      - "9117"
+
+    networks:
+      backend-network:
+      observability-net:
+        aliases:
+          - opensis-apache-exporter
 
   # -----------------------------
   # Traefik

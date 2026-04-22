@@ -77,12 +77,13 @@ COPY --from=builder /var/www/openSIS /var/www/openSIS
 # Apache configuration
 COPY docker/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
 COPY docker/apache/security-hardening.conf /etc/apache2/conf-available/security-hardening.conf
+COPY docker/apache/status.conf /etc/apache2/conf-available/status.conf
 
 # Apache configuration (safe + compatible)
-RUN a2enmod rewrite headers \
+RUN a2enmod rewrite headers status \
  && a2dismod mpm_event \
  && a2enmod mpm_prefork \
- && a2enconf security-hardening
+ && a2enconf security-hardening status
 
 # Permissions
 RUN chown -R www-data:www-data /var/www/openSIS \
