@@ -63,8 +63,12 @@ def read_file(path):
 
 
 def approle_login(approle_dir):
-    role_id = read_file(os.path.join(approle_dir, "role_id"))
-    secret_id = read_file(os.path.join(approle_dir, "secret_id"))
+    try:
+        role_id = read_file(os.path.join(approle_dir, "role_id"))
+        secret_id = read_file(os.path.join(approle_dir, "secret_id"))
+    except OSError as error:
+        return False, "", f"approle credential read failed for {approle_dir}: {error}"
+
     status, payload = request_json(
         "POST",
         "auth/approle/login",
