@@ -47,16 +47,22 @@ docker compose logs
 
 ### What is happening
 
-The base `docker-compose.yaml` references `docker.io/eseosaiyangbe/opensis-ui:dev`.
+Older revisions of this repo used `docker.io/eseosaiyangbe/opensis-ui:dev` directly in the base Compose file.
 That published dev image does not currently include an `linux/arm64/v8` manifest.
 
-The repo's supported ARM64 path is the wrapper script:
+The portable local path is now:
 
 ```bash
 ./scripts/compose-start.sh
 ```
 
-That script detects `arm64` and automatically adds `docker-compose.buildlocal.yaml` so `opensis-ui` is built locally instead of pulled.
+and the raw Compose equivalent is:
+
+```bash
+docker compose up -d --build
+```
+
+Both use the local Dockerfile for `opensis-ui`, which avoids host-architecture image manifest issues.
 
 ### Fix
 
@@ -69,10 +75,14 @@ Use one of these:
 or
 
 ```bash
-docker compose -f docker-compose.yaml -f docker-compose.buildlocal.yaml up -d --build
+docker compose up -d --build
 ```
 
-Do not use plain `docker compose up -d` on Apple Silicon unless the published `opensis-ui:dev` image is rebuilt and pushed as a multi-arch image.
+Only use the published image path when you intentionally opt into it on a compatible platform:
+
+```bash
+./scripts/compose-start.sh --pull-image
+```
 
 ## 2. Port Already In Use
 

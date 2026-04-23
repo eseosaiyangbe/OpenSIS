@@ -10,16 +10,19 @@ Use this when testing the fixed Vault setup.
 cd /path/to/OpenSIS
 
 # Default stack through the wrapper script.
-# Linux AMD64 pulls docker.io/eseosaiyangbe/opensis-ui:dev.
-# Apple Silicon/ARM64 builds opensis-ui locally to avoid image manifest errors.
+# The base Compose path now builds opensis-ui locally so the same command works
+# across Linux/macOS and Intel/ARM hosts.
 ./scripts/compose-start.sh
 
 # Clean start (removes old data) through the wrapper path
 ./scripts/compose-stop.sh --volumes
 ./scripts/compose-start.sh
 
-# Optional local UI build instead of pulling from Docker Hub
-docker compose -f docker-compose.yaml -f docker-compose.buildlocal.yaml up -d --build
+# Raw Docker Compose equivalent of the default portable path
+docker compose up -d --build
+
+# Optional published-image path on a compatible platform
+docker compose -f docker-compose.yaml -f docker-compose.pullimage.yaml up -d
 
 # Optional edge layer (Traefik + cloudflared)
 docker compose --profile edge up -d
@@ -31,7 +34,7 @@ docker compose up vault-agent-init
 docker compose up vault
 docker compose up vault-bootstrap
 docker compose up vault-seed
-docker compose -f docker-compose.yaml -f docker-compose.buildlocal.yaml up
+docker compose up
 ```
 
 ---

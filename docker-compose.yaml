@@ -335,8 +335,11 @@ services:
   # Opensis UI
   # -----------------------------
   opensis-ui:
-    image: docker.io/eseosaiyangbe/opensis-ui:dev
-    pull_policy: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: opensis-ui:local
+    pull_policy: build
     container_name: opensis-ui
     restart: unless-stopped
 

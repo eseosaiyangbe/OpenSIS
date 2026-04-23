@@ -112,7 +112,14 @@ Then run the local stack:
 ./scripts/compose-start.sh
 ```
 
-On Linux AMD64, the script uses the published `docker.io/eseosaiyangbe/opensis-ui:dev` image by default. On Apple Silicon/ARM64, the script automatically builds `opensis-ui` locally because the published dev tag does not currently include a `linux/arm64/v8` image.
+The default local path now builds `opensis-ui` locally, which makes the repo portable across:
+
+- macOS Intel
+- macOS Apple Silicon
+- Linux AMD64
+- Linux ARM64
+
+This is also why plain `docker compose up -d` now works consistently across those host architectures.
 
 Open:
 
@@ -127,18 +134,18 @@ or
 ./scripts/compose-stop.sh
 ```
 
-If you want to build the UI locally instead of pulling the published dev image:
+If you want the raw Docker Compose equivalent of the default portable start:
 
 ```bash
-docker compose -f docker-compose.yaml -f docker-compose.buildlocal.yaml up -d --build
-or
-./scripts/compose-start.sh --build-local
+docker compose up -d --build
 ```
 
 If you are on a compatible platform and explicitly want to force the published image path:
 
 ```bash
 ./scripts/compose-start.sh --pull-image
+or
+docker compose -f docker-compose.yaml -f docker-compose.pullimage.yaml up -d
 ```
 
 ## High-Level Architecture
@@ -170,7 +177,9 @@ Prometheus -> exporters -> Alertmanager / Grafana
 - [docker-compose.yaml](docker-compose.yaml)
   Main local stack definition.
 - [docker-compose.buildlocal.yaml](docker-compose.buildlocal.yaml)
-  Local UI build override for Compose.
+  Legacy local UI build override retained for compatibility.
+- [docker-compose.pullimage.yaml](docker-compose.pullimage.yaml)
+  Optional override that replaces the local UI build with the published dev image.
 - [scripts/precheck.sh](scripts/precheck.sh)
   Local environment readiness check.
 - [scripts/k8s-start.sh](scripts/k8s-start.sh)

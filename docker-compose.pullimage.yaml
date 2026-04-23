@@ -1,0 +1,5 @@
+services:
+  opensis-ui:
+    build: null
+    image: docker.io/eseosaiyangbe/opensis-ui:dev
+    pull_policy: always

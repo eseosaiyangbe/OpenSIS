@@ -15,7 +15,7 @@ This guide works on both:
 
 ## What This Stack Starts
 
-The base Compose stack defines:
+By default, `docker compose up -d --build` starts:
 
 - Vault
 - Vault bootstrap
@@ -55,9 +55,12 @@ Use the wrapper script for the most portable local start:
 ./scripts/compose-start.sh
 ```
 
-On Linux AMD64, this uses the published `docker.io/eseosaiyangbe/opensis-ui:dev` image. On Apple Silicon/ARM64, it automatically uses `docker-compose.buildlocal.yaml` and builds `opensis-ui` locally because the published dev image does not currently include a `linux/arm64/v8` manifest.
+The base Compose file now builds `opensis-ui` locally by default, so the same startup path works across:
 
-Do not assume plain `docker compose up -d` is portable across host architectures. On Apple Silicon, the base `docker-compose.yaml` still points to the published `docker.io/eseosaiyangbe/opensis-ui:dev` image, so a raw Compose start will fail with a manifest error unless you add the local-build override.
+- Linux AMD64
+- Linux ARM64
+- macOS Intel
+- macOS Apple Silicon
 
 Check status:
 
@@ -74,20 +77,22 @@ Local URLs:
 
 ## 4. Build The UI Locally Instead Of Pulling
 
-If you are changing application code or the Dockerfile path:
+If you are changing application code or want the raw Compose equivalent of the default startup:
 
 ```bash
-docker compose -f docker-compose.yaml -f docker-compose.buildlocal.yaml up -d --build
+docker compose up -d --build
 or
-./scripts/compose-start.sh --build-local
+./scripts/compose-start.sh
 ```
 
-This overrides the default image pull and builds `opensis-ui` locally.
+This uses the local Dockerfile path and avoids architecture-specific image manifest problems.
 
 To force the published image path on a compatible platform:
 
 ```bash
 ./scripts/compose-start.sh --pull-image
+or
+docker compose -f docker-compose.yaml -f docker-compose.pullimage.yaml up -d
 ```
 
 ## 5. Optional Edge Mode
@@ -162,10 +167,10 @@ Restart the full stack:
 ./scripts/compose-start.sh
 ```
 
-If you explicitly want the raw Docker Compose path on Apple Silicon, use:
+If you explicitly want the raw Docker Compose path, use:
 
 ```bash
-docker compose -f docker-compose.yaml -f docker-compose.buildlocal.yaml up -d --build
+docker compose up -d --build
 ```
 
 ## 9. Local Troubleshooting Shortlist

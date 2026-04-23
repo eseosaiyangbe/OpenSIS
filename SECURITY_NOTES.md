@@ -53,7 +53,7 @@ From an operator point of view, nothing special changes:
 
 ## Portability Notes
 
-This design is reproducible for Docker Compose because it is declared in `docker-compose.yaml`. The default Compose path now pulls the UI from `docker.io/eseosaiyangbe/opensis-ui:dev`, while `docker-compose.buildlocal.yaml` is available when you explicitly want to build the UI locally.
+This design is reproducible for Docker Compose because it is declared in `docker-compose.yaml`. The default Compose path now builds the UI locally so the same startup contract works across Linux/macOS and Intel/ARM hosts. The published `docker.io/eseosaiyangbe/opensis-ui:dev` path is now an explicit override instead of the default.
 
 It is not a Kubernetes-native design as-is. In Kubernetes, the equivalent pattern would usually be implemented with:
 - Vault Agent Injector
