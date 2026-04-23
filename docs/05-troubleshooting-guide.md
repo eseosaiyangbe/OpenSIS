@@ -30,12 +30,49 @@ docker compose logs
 - missing `.env` values
 - Docker Desktop not running on macOS
 - missing build context files
+- Apple Silicon host pulling an AMD64-only `opensis-ui:dev` image
 
 ### Typical fix
 
 - resolve the first clear error
 - rerun `docker compose config`
 - retry `docker compose up -d`
+
+### Apple Silicon / ARM64 Image Manifest Error
+
+### Symptom
+
+- `docker compose up -d` fails with:
+- `no matching manifest for linux/arm64/v8 in the manifest list entries`
+
+### What is happening
+
+The base `docker-compose.yaml` references `docker.io/eseosaiyangbe/opensis-ui:dev`.
+That published dev image does not currently include an `linux/arm64/v8` manifest.
+
+The repo's supported ARM64 path is the wrapper script:
+
+```bash
+./scripts/compose-start.sh
+```
+
+That script detects `arm64` and automatically adds `docker-compose.buildlocal.yaml` so `opensis-ui` is built locally instead of pulled.
+
+### Fix
+
+Use one of these:
+
+```bash
+./scripts/compose-start.sh
+```
+
+or
+
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.buildlocal.yaml up -d --build
+```
+
+Do not use plain `docker compose up -d` on Apple Silicon unless the published `opensis-ui:dev` image is rebuilt and pushed as a multi-arch image.
 
 ## 2. Port Already In Use
 

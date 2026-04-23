@@ -15,7 +15,7 @@ This guide works on both:
 
 ## What This Stack Starts
 
-By default, `docker compose up -d` starts:
+The base Compose stack defines:
 
 - Vault
 - Vault bootstrap
@@ -56,6 +56,8 @@ Use the wrapper script for the most portable local start:
 ```
 
 On Linux AMD64, this uses the published `docker.io/eseosaiyangbe/opensis-ui:dev` image. On Apple Silicon/ARM64, it automatically uses `docker-compose.buildlocal.yaml` and builds `opensis-ui` locally because the published dev image does not currently include a `linux/arm64/v8` manifest.
+
+Do not assume plain `docker compose up -d` is portable across host architectures. On Apple Silicon, the base `docker-compose.yaml` still points to the published `docker.io/eseosaiyangbe/opensis-ui:dev` image, so a raw Compose start will fail with a manifest error unless you add the local-build override.
 
 Check status:
 
@@ -156,11 +158,14 @@ docker compose restart opensis-ui
 Restart the full stack:
 
 ```bash
-docker compose up -d
-docker compose down -v
-or
 ./scripts/compose-stop.sh
 ./scripts/compose-start.sh
+```
+
+If you explicitly want the raw Docker Compose path on Apple Silicon, use:
+
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.buildlocal.yaml up -d --build
 ```
 
 ## 9. Local Troubleshooting Shortlist

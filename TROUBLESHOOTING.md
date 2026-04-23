@@ -9,12 +9,13 @@ Use this when testing the fixed Vault setup.
 ```bash
 cd /path/to/OpenSIS
 
-# Clean start (removes old data)
-docker compose down -v && docker compose up -d
-
 # Default stack through the wrapper script.
 # Linux AMD64 pulls docker.io/eseosaiyangbe/opensis-ui:dev.
 # Apple Silicon/ARM64 builds opensis-ui locally to avoid image manifest errors.
+./scripts/compose-start.sh
+
+# Clean start (removes old data) through the wrapper path
+./scripts/compose-stop.sh --volumes
 ./scripts/compose-start.sh
 
 # Optional local UI build instead of pulling from Docker Hub
@@ -30,7 +31,7 @@ docker compose up vault-agent-init
 docker compose up vault
 docker compose up vault-bootstrap
 docker compose up vault-seed
-docker compose up
+docker compose -f docker-compose.yaml -f docker-compose.buildlocal.yaml up
 ```
 
 ---
