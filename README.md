@@ -110,6 +110,7 @@ Then run the local stack:
 ```bash
 ./scripts/precheck.sh
 ./scripts/compose-start.sh
+./scripts/docker-storage-check.sh
 ```
 
 The default local path now builds `opensis-ui` locally, which makes the repo portable across:
@@ -139,6 +140,8 @@ If you want the raw Docker Compose equivalent of the default portable start:
 ```bash
 docker compose up -d --build
 ```
+
+`./scripts/docker-storage-check.sh` gives a quick operator view of Docker storage usage, current OpenSIS container logging policy, and the largest visible Docker `json-file` logs. Run it before demos or during disk-pressure incidents.
 
 If you are on a compatible platform and explicitly want to force the published image path:
 

@@ -1,3 +1,9 @@
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
 
   # -----------------------------
@@ -6,6 +12,7 @@ services:
   vault-volume-init:
     image: alpine:3.20
     container_name: vault-volume-init
+    logging: *default-logging
     restart: "no"
 
     command: >
@@ -26,6 +33,7 @@ services:
   vault-agent-init:
     image: alpine:3.20
     container_name: vault-agent-init
+    logging: *default-logging
     restart: "no"
 
     command: >
@@ -45,6 +53,7 @@ services:
   approle-volume-init:
     image: alpine:3.20
     container_name: approle-volume-init
+    logging: *default-logging
     restart: "no"
 
     command: >
@@ -66,6 +75,7 @@ services:
   vault:
     image: hashicorp/vault:1.15
     container_name: vault
+    logging: *default-logging
     restart: unless-stopped
     user: "1000:1000"
 
@@ -105,8 +115,8 @@ services:
     build:
       context: .
       dockerfile: vault-bootstrap/Dockerfile
-
     container_name: vault-bootstrap
+    logging: *default-logging
     restart: "no"
 
     depends_on:
@@ -141,8 +151,8 @@ services:
     build:
       context: .
       dockerfile: vault-seed/Dockerfile
-
     container_name: vault-seed
+    logging: *default-logging
     restart: "no"
 
     depends_on:
@@ -168,6 +178,7 @@ services:
   vault-agent-db:
     image: hashicorp/vault:1.15
     container_name: vault-agent-db
+    logging: *default-logging
     restart: unless-stopped
     user: "1000:1000"
 
@@ -202,6 +213,7 @@ services:
   vault-agent-app:
     image: hashicorp/vault:1.15
     container_name: vault-agent-app
+    logging: *default-logging
     restart: unless-stopped
     user: "1000:1000"
 
@@ -235,6 +247,7 @@ services:
   vault-synthetic-exporter:
     image: python:3.12-alpine
     container_name: opensis-vault-synthetic-exporter
+    logging: *default-logging
     restart: unless-stopped
 
     depends_on:
@@ -270,6 +283,7 @@ services:
   opensis-db:
     image: mariadb:10.11.7
     container_name: opensis-db
+    logging: *default-logging
     restart: unless-stopped
 
     depends_on:
@@ -307,6 +321,7 @@ services:
   mysqld-exporter:
     image: prom/mysqld-exporter:v0.17.2
     container_name: opensis-mysqld-exporter
+    logging: *default-logging
     restart: unless-stopped
 
     depends_on:
@@ -341,6 +356,7 @@ services:
     image: opensis-ui:local
     pull_policy: build
     container_name: opensis-ui
+    logging: *default-logging
     restart: unless-stopped
 
     depends_on:
@@ -387,6 +403,7 @@ services:
   apache-exporter:
     image: lusotycoon/apache-exporter:v1.0.10
     container_name: opensis-apache-exporter
+    logging: *default-logging
     restart: unless-stopped
 
     depends_on:
@@ -413,6 +430,7 @@ services:
   traefik:
     image: traefik:v3.6.1
     container_name: traefik
+    logging: *default-logging
     restart: unless-stopped
     profiles: ["edge"]
 
@@ -443,6 +461,7 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared
+    logging: *default-logging
     restart: unless-stopped
     profiles: ["edge"]
 
