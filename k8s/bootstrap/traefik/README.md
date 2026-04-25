@@ -2,6 +2,8 @@
 
 This repo keeps Traefik as the intended in-cluster ingress standard for the public Cloudflare edge path.
 
+At the workspace level, Traefik is now the preferred ingress direction for the broader Kubernetes migration story as well.
+
 ## Why Traefik Here
 
 - Cloudflare handles the public edge
@@ -10,9 +12,10 @@ This repo keeps Traefik as the intended in-cluster ingress standard for the publ
 
 ## Current State
 
-The current live cluster still uses the `nginx` ingress class.
+Some older workload docs in the monorepo still reference `nginx` ingress examples.
+Treat those as transitional materials, not as the current platform direction.
 
-Traefik is being prepared deliberately so the cutover can happen cleanly instead of breaking the currently healthy `opensis-dev` path.
+Traefik is the intended ingress standard going forward, and any remaining NGINX references should be read as historical or workload-local learning content until they are fully aligned.
 
 ## Suggested Install Shape
 
