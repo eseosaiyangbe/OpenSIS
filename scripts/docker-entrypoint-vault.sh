@@ -2,7 +2,7 @@
 set -e
 
 SECRETS_FILE="${APP_SECRETS_FILE:-/run/secrets/app.env}"
-WAIT_TIMEOUT="${APP_SECRETS_WAIT_TIMEOUT:-60}"
+WAIT_TIMEOUT="${APP_SECRETS_WAIT_TIMEOUT:-180}"
 
 echo "[entrypoint] Waiting for Vault-rendered application secrets..."
 

@@ -119,7 +119,9 @@ services:
     pull_policy: never
     container_name: vault-bootstrap
     logging: *default-logging
-    restart: "no"
+    restart: unless-stopped
+
+    entrypoint: ["/bin/sh", "-c", "/usr/local/bin/vault-bootstrap-watch.sh"]
 
     depends_on:
       vault-volume-init:
@@ -135,12 +137,26 @@ services:
       - vault_data:/vault/data
       - ./vault-bootstrap/policies:/policies:ro
       - ./scripts/bootstrap.sh:/bootstrap.sh:ro
+      - ./scripts/vault-bootstrap-watch.sh:/usr/local/bin/vault-bootstrap-watch.sh:ro
       - app_runtime_approle:/approle-app
       - db_runtime_approle:/approle-db
 
     environment:
       APP_APPROLE_DIR: /approle-app
       DB_APPROLE_DIR: /approle-db
+      VAULT_BOOTSTRAP_RECONCILE_INTERVAL: ${VAULT_BOOTSTRAP_RECONCILE_INTERVAL:-30}
+      VAULT_BOOTSTRAP_FAILURE_BACKOFF: ${VAULT_BOOTSTRAP_FAILURE_BACKOFF:-5}
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "vault status -format=json | jq -e '.initialized == true and .sealed == false' >/dev/null && [ -s /approle-db/role_id ] && [ -s /approle-db/secret_id ] && [ -s /approle-app/role_id ] && [ -s /approle-app/secret_id ]",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
     networks:
       - backend-network
@@ -161,7 +177,7 @@ services:
 
     depends_on:
       vault-bootstrap:
-        condition: service_completed_successfully
+        condition: service_healthy
 
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -186,8 +202,8 @@ services:
     restart: unless-stopped
     user: "1000:1000"
 
-    entrypoint: ["vault"]
-    command: ["agent", "-config=/vault/agent/agent-db.hcl"]
+    entrypoint: ["/usr/local/bin/vault-agent-supervisor.sh"]
+    command: ["/vault/agent/agent-db.hcl", "/vault/secrets/db.env", "MYSQL_ROOT_PASSWORD="]
 
     cap_add:
       - IPC_LOCK
@@ -196,7 +212,7 @@ services:
       vault:
         condition: service_healthy
       vault-bootstrap:
-        condition: service_completed_successfully
+        condition: service_healthy
 
     environment:
       APP_ENV: ${APP_ENV}
@@ -204,6 +220,7 @@ services:
     volumes:
       - ./vault-agent/db-config:/vault/agent:ro
       - ./vault-agent/db-templates:/vault/templates:ro
+      - ./scripts/vault-agent-supervisor.sh:/usr/local/bin/vault-agent-supervisor.sh:ro
       - db_runtime_approle:/vault/approle
       - db_runtime_secrets:/vault/secrets
 
@@ -221,8 +238,8 @@ services:
     restart: unless-stopped
     user: "1000:1000"
 
-    entrypoint: ["vault"]
-    command: ["agent", "-config=/vault/agent/agent-app.hcl"]
+    entrypoint: ["/usr/local/bin/vault-agent-supervisor.sh"]
+    command: ["/vault/agent/agent-app.hcl", "/vault/secrets/app.env", "DB_HOST="]
 
     cap_add:
       - IPC_LOCK
@@ -231,7 +248,7 @@ services:
       vault:
         condition: service_healthy
       vault-bootstrap:
-        condition: service_completed_successfully
+        condition: service_healthy
 
     environment:
       APP_ENV: ${APP_ENV}
@@ -239,6 +256,7 @@ services:
     volumes:
       - ./vault-agent/app-config:/vault/agent:ro
       - ./vault-agent/app-templates:/vault/templates:ro
+      - ./scripts/vault-agent-supervisor.sh:/usr/local/bin/vault-agent-supervisor.sh:ro
       - app_runtime_approle:/vault/approle
       - app_runtime_secrets:/vault/secrets
 
@@ -258,7 +276,7 @@ services:
       vault:
         condition: service_healthy
       vault-bootstrap:
-        condition: service_completed_successfully
+        condition: service_healthy
 
     command: ["python", "/opt/opensis/vault-synthetic-exporter.py"]
 
@@ -315,6 +333,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 150s
 
     networks:
       - backend-network
@@ -340,6 +359,9 @@ services:
 
     volumes:
       - ./observability/mysqld-exporter-entrypoint.sh:/usr/local/bin/mysqld-exporter-entrypoint.sh:ro
+
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=1m
 
     expose:
       - "9104"
@@ -386,6 +408,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 5
+      start_period: 180s
 
     labels:
       - "traefik.enable=true"

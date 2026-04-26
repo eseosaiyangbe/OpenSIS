@@ -6,8 +6,31 @@ export VAULT_ADDR="${VAULT_ADDR:-http://vault:8200}"
 DATA_DIR="/vault/data"
 DB_APPROLE_DIR="${DB_APPROLE_DIR:-/approle/db-approle}"
 APP_APPROLE_DIR="${APP_APPROLE_DIR:-/approle/app-approle}"
+FORCE_ROTATE_APPROLE_SECRET_IDS="${FORCE_ROTATE_APPROLE_SECRET_IDS:-false}"
 RETRY=0
 MAX_RETRIES=150  # ~5 minutes with 2-second sleep
+
+write_role_id() {
+  role_name="$1"
+  target_dir="$2"
+
+  vault read -format=json "auth/approle/role/${role_name}/role-id" \
+    | jq -r '.data.role_id' > "${target_dir}/role_id" || {
+    echo "ERROR: Failed to write ${role_name} role_id"
+    exit 1
+  }
+}
+
+write_secret_id() {
+  role_name="$1"
+  target_dir="$2"
+
+  vault write -f -format=json "auth/approle/role/${role_name}/secret-id" \
+    | jq -r '.data.secret_id' > "${target_dir}/secret_id" || {
+    echo "ERROR: Failed to write ${role_name} secret_id"
+    exit 1
+  }
+}
 
 echo "Waiting for Vault to become reachable..."
 
@@ -26,6 +49,11 @@ echo "Vault is reachable."
 
 INITIALIZED=$(vault status -format=json | jq -r '.initialized')
 SEALED=$(vault status -format=json | jq -r '.sealed')
+
+if [ -z "$INITIALIZED" ] || [ -z "$SEALED" ]; then
+  echo "ERROR: Vault status could not be parsed correctly."
+  exit 1
+fi
 
 echo "Vault status: initialized=$INITIALIZED sealed=$SEALED"
 
@@ -66,6 +94,11 @@ export VAULT_TOKEN="$ROOT_TOKEN"
 # Unseal if needed
 # ---------------------------------------------------
 SEALED=$(vault status -format=json | jq -r '.sealed')
+
+if [ -z "$SEALED" ]; then
+  echo "ERROR: Vault seal status could not be parsed correctly."
+  exit 1
+fi
 
 if [ "$SEALED" = "true" ]; then
   echo "Unsealing Vault..."
@@ -140,29 +173,20 @@ mkdir -p "$APP_APPROLE_DIR" || {
   exit 1
 }
 
-vault read -format=json auth/approle/role/opensis-db/role-id \
-  | jq -r '.data.role_id' > "$DB_APPROLE_DIR/role_id" || {
-  echo "ERROR: Failed to write db-approle role_id"
-  exit 1
-}
+write_role_id "opensis-db" "$DB_APPROLE_DIR"
+write_role_id "opensis-app" "$APP_APPROLE_DIR"
 
-vault write -f -format=json auth/approle/role/opensis-db/secret-id \
-  | jq -r '.data.secret_id' > "$DB_APPROLE_DIR/secret_id" || {
-  echo "ERROR: Failed to write db-approle secret_id"
-  exit 1
-}
+if [ "$FORCE_ROTATE_APPROLE_SECRET_IDS" = "true" ] || [ ! -s "$DB_APPROLE_DIR/secret_id" ]; then
+  write_secret_id "opensis-db" "$DB_APPROLE_DIR"
+else
+  echo "Reusing existing opensis-db secret_id."
+fi
 
-vault read -format=json auth/approle/role/opensis-app/role-id \
-  | jq -r '.data.role_id' > "$APP_APPROLE_DIR/role_id" || {
-  echo "ERROR: Failed to write app-approle role_id"
-  exit 1
-}
-
-vault write -f -format=json auth/approle/role/opensis-app/secret-id \
-  | jq -r '.data.secret_id' > "$APP_APPROLE_DIR/secret_id" || {
-  echo "ERROR: Failed to write app-approle secret_id"
-  exit 1
-}
+if [ "$FORCE_ROTATE_APPROLE_SECRET_IDS" = "true" ] || [ ! -s "$APP_APPROLE_DIR/secret_id" ]; then
+  write_secret_id "opensis-app" "$APP_APPROLE_DIR"
+else
+  echo "Reusing existing opensis-app secret_id."
+fi
 
 # Verify credentials were written
 if [ ! -s "$DB_APPROLE_DIR/role_id" ] || [ ! -s "$DB_APPROLE_DIR/secret_id" ]; then
