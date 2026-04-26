@@ -115,6 +115,8 @@ services:
     build:
       context: .
       dockerfile: vault-bootstrap/Dockerfile
+    image: opensis-vault-bootstrap:local
+    pull_policy: never
     container_name: vault-bootstrap
     logging: *default-logging
     restart: "no"
@@ -151,6 +153,8 @@ services:
     build:
       context: .
       dockerfile: vault-seed/Dockerfile
+    image: opensis-vault-seed:local
+    pull_policy: never
     container_name: vault-seed
     logging: *default-logging
     restart: "no"
@@ -354,7 +358,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: opensis-ui:local
-    pull_policy: build
+    pull_policy: never
     container_name: opensis-ui
     logging: *default-logging
     restart: unless-stopped

@@ -8,6 +8,7 @@ Usage: ./scripts/compose-start.sh [options]
 Start the local Docker Compose stack.
 
 Options:
+  --build         Force a local rebuild before startup
   --build-local   Kept for compatibility; the default path already builds opensis-ui locally
   --pull-image    Pull the published openSIS UI image instead of building locally
   --edge          Include edge services (Traefik and Cloudflare Tunnel)
@@ -25,6 +26,7 @@ require_repo_root() {
 
 main() {
   local build_local=0
+  local force_build=0
   local pull_image=0
   local edge=0
   local skip_precheck=0
@@ -32,6 +34,10 @@ main() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
+      --build)
+        force_build=1
+        shift
+        ;;
       --build-local)
         build_local=1
         shift
@@ -83,8 +89,10 @@ main() {
   echo "Starting local stack..."
   if [[ "$pull_image" -eq 1 ]]; then
     compose_cmd+=(up -d)
-  else
+  elif [[ "$force_build" -eq 1 ]]; then
     compose_cmd+=(up -d --build)
+  else
+    compose_cmd+=(up -d)
   fi
 
   "${compose_cmd[@]}"
