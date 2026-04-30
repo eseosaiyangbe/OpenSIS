@@ -1,4 +1,12 @@
-# Overlays
+# Legacy Overlays
+
+These overlays belong to the archived OpenSIS Kubernetes tree.
+
+They are preserved as legacy reference material, not as the active owned workspace standard.
+
+The active Kubernetes path now starts at:
+
+- [../../k8s](/Users/raymond/Documents/DevOps-Easy-Learning/OpenSIS/k8s)
 
 This directory contains environment-specific Kustomize overlays built on top of [k8s/base](../base/kustomization.yaml).
 

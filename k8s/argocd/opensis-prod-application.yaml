@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opensis-prod
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/eseosaiyangbe/DevOps-Easy-Learning.git
+    targetRevision: main
+    path: OpenSIS/k8s/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: opensis-prod
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

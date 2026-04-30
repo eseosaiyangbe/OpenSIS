@@ -39,12 +39,13 @@ Optional local edge components are also available:
 
 ### Kubernetes Stack
 
-The Kubernetes path uses:
+The active owned Kubernetes path now uses:
 
 - Kustomize overlays
-- Vault Agent Injector
+- Vault-first secret delivery
 - Argo CD
-- Prometheus, Alertmanager, Grafana, blackbox-exporter, and mysqld-exporter
+- Traefik-aligned ingress direction
+- shared observability integration through the workspace control plane
 - backup and restore workflows
 
 ## Start Here
@@ -85,13 +86,21 @@ If you are brand new, read these first:
 - [docs/06-architecture-reference.md](docs/06-architecture-reference.md)
   End-to-end architecture, traffic flow, secrets flow, and design decisions.
 
+## Kubernetes Paths
+
+The repo now has two Kubernetes paths:
+
+- active owned path:
+  - [OpenSIS Owned Kubernetes Path](k8s/README.md)
+- archived legacy reference path:
+  - [Legacy Kubernetes Base](k8s-legacy-platform/README.md)
+  - [From-Scratch Local Bootstrap](k8s-legacy-platform/FROM_SCRATCH_LOCAL_BOOTSTRAP.md)
+  - [Production-Grade CI/CD Blueprint](k8s-legacy-platform/PRODUCTION_GRADE_CICD_BLUEPRINT.md)
+
 ## Existing Deep-Dive Guides
 
 These longer repo-specific guides remain useful for advanced work:
 
-- [Kubernetes Base Overview](k8s/README.md)
-- [From-Scratch Local Bootstrap](k8s/FROM_SCRATCH_LOCAL_BOOTSTRAP.md)
-- [Production-Grade CI/CD Blueprint](k8s/PRODUCTION_GRADE_CICD_BLUEPRINT.md)
 - [Troubleshooting](TROUBLESHOOTING.md)
 - [Security Notes](SECURITY_NOTES.md)
 - [Tests And Verification](tests/README.md)
@@ -186,9 +195,9 @@ Prometheus -> exporters -> Alertmanager / Grafana
 - [scripts/precheck.sh](scripts/precheck.sh)
   Local environment readiness check.
 - [scripts/k8s-start.sh](scripts/k8s-start.sh)
-  Local `k3s` startup helper with optional Vault unseal and smoke checks.
+  Legacy repo-specific `k3s` startup helper retained for reference.
 - [scripts/k8s-stop.sh](scripts/k8s-stop.sh)
-  Local `k3s` shutdown helper.
+  Legacy repo-specific `k3s` shutdown helper retained for reference.
 - [scripts/smoke-dev.sh](scripts/smoke-dev.sh)
   Dev verification helper.
 - [scripts/smoke-prod.sh](scripts/smoke-prod.sh)

@@ -1,8 +1,14 @@
 # 03: Kubernetes Bootstrap Guide
 
-This guide explains the full Kubernetes path from a clean cluster to a working `dev` and `prod` deployment model.
+This guide explains the older end-to-end Kubernetes bootstrap path from a clean cluster to a working `dev` and `prod` deployment model.
 
-It is written as the simpler public-facing version of the deeper operator notebook in [FROM_SCRATCH_LOCAL_BOOTSTRAP.md](../k8s/FROM_SCRATCH_LOCAL_BOOTSTRAP.md).
+It is now preserved as legacy reference material.
+
+The active owned Kubernetes path for the shared DevOps Easy Learning workspace now starts at:
+
+- [../k8s/README.md](../k8s/README.md)
+
+It is written as the simpler public-facing version of the deeper operator notebook in [FROM_SCRATCH_LOCAL_BOOTSTRAP.md](../k8s-legacy-platform/FROM_SCRATCH_LOCAL_BOOTSTRAP.md).
 
 This path is production-minded, but still practical for a single-node lab cluster.
 
@@ -285,7 +291,7 @@ Base manifests live under:
 
 Overlays live under:
 
-- [k8s/overlays](../k8s/overlays)
+- [k8s-legacy-platform/overlays](../k8s-legacy-platform/overlays)
 
 Argo applications to expect:
 
@@ -376,6 +382,7 @@ Those are documented in:
 For full operator detail, use:
 
 - [k8s/README.md](../k8s/README.md)
+- [k8s-legacy-platform/README.md](../k8s-legacy-platform/README.md)
 - [FROM_SCRATCH_LOCAL_BOOTSTRAP.md](../k8s/FROM_SCRATCH_LOCAL_BOOTSTRAP.md)
 - [PRODUCTION_GRADE_CICD_BLUEPRINT.md](../k8s/PRODUCTION_GRADE_CICD_BLUEPRINT.md)
 

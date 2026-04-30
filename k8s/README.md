@@ -1,73 +1,79 @@
-# Kubernetes Base
+# OpenSIS Owned Kubernetes Path
 
-See also: [Day-1 Production Architecture](DAY1_PRODUCTION_ARCHITECTURE.md)
-See also: [From-Scratch Local Bootstrap](FROM_SCRATCH_LOCAL_BOOTSTRAP.md)
-See also: [Production-Grade CI/CD Blueprint](PRODUCTION_GRADE_CICD_BLUEPRINT.md)
+This directory is the new owned Kubernetes path for `OpenSIS` in the shared DevOps Easy Learning workspace.
 
-This `k8s/` tree is the first production-minded migration layer for the business path only:
+It exists because the older `OpenSIS` Kubernetes tree carried useful production-minded work, but it was built around older platform assumptions that no longer match the workspace standard.
 
-- `opensis-ui`
-- `opensis-db`
-- ingress
-- Vault-backed secret delivery
+Current workspace standard:
 
-It intentionally does not mirror the Docker Compose secret handoff. Instead, it assumes Kubernetes is already integrated with Vault using the Vault Agent Injector and Kubernetes auth.
+- shared local `k3s` runtime
+- Traefik for ingress
+- Vault as the secret source of truth
+- Argo CD for GitOps
+- shared observability through `Obervability-Stack`
+- explicit `dev` and `prod` environments
 
-## Design Intent
+## What Happened To The Older Kubernetes Tree
 
-The base follows a more standard Kubernetes approach:
+The previous OpenSIS Kubernetes implementation was preserved intact at:
 
-- MariaDB runs as a `StatefulSet`
-- openSIS UI runs as a `Deployment`
-- ingress is handled with a standard `Ingress` object
-- each workload authenticates to Vault with its own Kubernetes `ServiceAccount`
-- Vault Agent Injector renders `/run/secrets/app.env` and `/run/secrets/db.env` directly into the pods
+- [k8s-legacy-platform](/Users/raymond/Documents/DevOps-Easy-Learning/OpenSIS/k8s-legacy-platform)
 
-This keeps the runtime behavior familiar to the application while avoiding Docker-era AppRole plumbing in the manifests.
+That legacy tree still contains valuable reference material, including:
 
-## What Is Included
+- older Vault Agent Injector integration
+- Argo CD application structure
+- MariaDB `StatefulSet` patterns
+- backup and restore workflows
+- historical production-edge notes
 
-- Namespace and base kustomization
-- openSIS DB `StatefulSet`, `Service`, `volumeClaimTemplates`, and `ServiceAccount`
-- openSIS UI `Deployment`, `Service`, `Ingress`, and `ServiceAccount`
-- ConfigMaps for app and DB runtime configuration
-- Vault Injector annotations on the UI and DB pods
+It is now treated as archival engineering history, not the active owned path for this workspace.
 
-## Prerequisites
+## What This New Path Will Own
 
-Before applying this base, the cluster should already have:
+This new `k8s/` tree will become the authoritative OpenSIS Kubernetes path for this project.
 
-- Vault Agent Injector installed
-- Vault Kubernetes auth enabled
-- a Vault role for the app service account
-- a Vault role for the DB service account
-- KV secrets populated for the app and DB
-- a default `StorageClass` or an overlay that sets the desired `storageClassName`
+The intended owned shape is:
 
-Expected Vault roles:
+- `base`
+  - application runtime
+  - MariaDB
+  - session Redis
+  - Traefik ingress
+  - minimal exporter and probe surfaces for the shared observability control plane
+  - Vault-first runtime secret delivery
+- `overlays/dev`
+  - local `k3s` validation path
+  - lower resources
+  - local hostnames
+  - `opensis-dev` namespace
+- `overlays/prod`
+  - stricter production contract
+  - pinned images
+  - production hostnames
+  - `opensis-prod` namespace
+- `argocd`
+  - repo-owned application manifests for `dev` and `prod`
 
-- `opensis-app`
-- `opensis-db`
+## Current Status
 
-Expected secret paths:
+This tree is now the clean ownership boundary for the next Phase 7 implementation slice.
 
-- `kv/data/production/opensis-app`
-- `kv/data/production/opensis-db`
+What is already true:
 
-## Important Notes
+- the older Kubernetes path has been archived under `k8s-legacy-platform`
+- this new directory is now the active target for future OpenSIS Kubernetes work
+- the assessment and migration decision for the new path is recorded in:
+  - [OPENSIS-K8S-ASSESSMENT.md](/Users/raymond/Documents/DevOps-Easy-Learning/OPENSIS-K8S-ASSESSMENT.md)
 
-- This base assumes Vault is an external or separately managed platform dependency.
-- TLS and ingress-class specifics should be set in overlays for your target cluster.
-- Container images are still placeholders from the current local flow and should be replaced with pinned registry images before production.
+What is not claimed yet:
 
-## Suggested Apply Order
+- a live `k3s` `dev` OpenSIS rollout from this new path
+- a complete `prod` contract implementation from this new path
 
-1. `namespace.yaml`
-2. `opensis-db/*`
-3. `opensis-ui/*`
+## Related Documents
 
-## Example
-
-```bash
-kubectl apply -k k8s/base
-```
+- [OPENSIS-K8S-ASSESSMENT.md](/Users/raymond/Documents/DevOps-Easy-Learning/OPENSIS-K8S-ASSESSMENT.md)
+- [README.md](/Users/raymond/Documents/DevOps-Easy-Learning/OpenSIS/README.md)
+- [docs/03-kubernetes-bootstrap-guide.md](/Users/raymond/Documents/DevOps-Easy-Learning/OpenSIS/docs/03-kubernetes-bootstrap-guide.md)
+- [k8s-legacy-platform/README.md](/Users/raymond/Documents/DevOps-Easy-Learning/OpenSIS/k8s-legacy-platform/README.md)

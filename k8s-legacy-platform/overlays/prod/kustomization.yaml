@@ -1,0 +1,46 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: opensis
+resources:
+  - ../../base
+  - opensis-session-redis-deployment.yaml
+  - opensis-session-redis-service.yaml
+  - opensis-session-redis-networkpolicy.yaml
+  - vault-agent-ca-secret.yaml
+patches:
+  - path: opensis-ui-configmap-patch.yaml
+  - path: opensis-ui-deployment-patch.yaml
+  - path: opensis-db-statefulset-patch.yaml
+  - path: opensis-ui-ingress-patch.yaml
+  - path: opensis-ui-networkpolicy-patch.yaml
+  - path: opensis-db-backup-cronjob-patch.yaml
+  - path: opensis-db-backup-pvc-patch.yaml
+  - path: prometheus-configmap-patch.yaml
+  - path: prometheus-deployment-patch.yaml
+  - path: prometheus-pvc-patch.yaml
+  - path: grafana-deployment-patch.yaml
+  - path: grafana-pvc-patch.yaml
+  - target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRole
+      name: opensis-kube-state-metrics
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: opensis-prod-kube-state-metrics
+  - target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: ClusterRoleBinding
+      name: opensis-kube-state-metrics
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: opensis-prod-kube-state-metrics
+      - op: replace
+        path: /roleRef/name
+        value: opensis-prod-kube-state-metrics
+images:
+  - name: docker.io/eseosaiyangbe/opensis-ui
+    newTag: git-5100dfd
