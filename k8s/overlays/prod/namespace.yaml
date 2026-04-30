@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: opensis-prod
+  labels:
+    app.kubernetes.io/part-of: devops-easy-learning
+    environment: prod
+    observability.dev/app: opensis

@@ -65,11 +65,44 @@ What is already true:
 - this new directory is now the active target for future OpenSIS Kubernetes work
 - the assessment and migration decision for the new path is recorded in:
   - [OPENSIS-K8S-ASSESSMENT.md](/Users/raymond/Documents/DevOps-Easy-Learning/OPENSIS-K8S-ASSESSMENT.md)
+- a live `k3s` `dev` rollout now works from this owned path with:
+  - Traefik ingress on `opensis.devops.local`
+  - Vault-backed External Secrets for app and DB env files
+  - MariaDB and session Redis in the `opensis-dev` namespace
+  - the expected first-run redirect to `install/index.php`
 
 What is not claimed yet:
 
-- a live `k3s` `dev` OpenSIS rollout from this new path
 - a complete `prod` contract implementation from this new path
+
+## Operator Path
+
+The owned OpenSIS Kubernetes slice follows the same operator contract as the other migrated apps:
+
+```bash
+cd /Users/raymond/Documents/DevOps-Easy-Learning/OpenSIS
+./scripts/k8s-dev-deploy.sh
+./scripts/k8s-dev-verify.sh
+./scripts/k8s-dev-destroy.sh
+```
+
+Expected local dev hostname:
+
+- `http://opensis.devops.local`
+
+Local browser host entries can be refreshed with:
+
+```bash
+cd /Users/raymond/Documents/DevOps-Easy-Learning
+./scripts/setup-devops-local-hosts.sh
+```
+
+Secrets for both `dev` and `prod` are sourced from the shared workspace Vault bootstrap through External Secrets Operator. The active seeding and role reconciliation entrypoint is:
+
+```bash
+cd /Users/raymond/Documents/DevOps-Easy-Learning
+./scripts/bootstrap-k3s-vault-secrets.sh
+```
 
 ## Related Documents
 

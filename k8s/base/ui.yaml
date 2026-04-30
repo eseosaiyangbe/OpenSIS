@@ -1,0 +1,207 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensis-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensis-ui
+  template:
+    metadata:
+      labels:
+        app: opensis-ui
+    spec:
+      serviceAccountName: opensis-ui
+      volumes:
+        - name: app-secrets
+          secret:
+            secretName: opensis-app-secrets
+            items:
+              - key: app.env
+                path: app.env
+      containers:
+        - name: opensis-ui
+          image: opensis-ui:dev
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              SECRETS_FILE="${APP_SECRETS_FILE:-/opt/opensis/secrets/app.env}"
+              WAIT_TIMEOUT="${APP_SECRETS_WAIT_TIMEOUT:-180}"
+
+              echo "[entrypoint] Waiting for Vault-rendered application secrets..."
+              timeout="$WAIT_TIMEOUT"
+              while [ "$timeout" -gt 0 ]; do
+                if [ -s "$SECRETS_FILE" ] && grep -q DB_HOST "$SECRETS_FILE"; then
+                  break
+                fi
+                sleep 2
+                timeout=$((timeout-2))
+              done
+
+              if [ "$timeout" -eq 0 ]; then
+                echo "[entrypoint] ERROR: Vault secrets not available after ${WAIT_TIMEOUT} seconds."
+                exit 1
+              fi
+
+              echo "[entrypoint] Secrets file detected."
+              set -a
+              . "$SECRETS_FILE"
+              set +a
+
+              : "${DB_HOST:?Missing DB_HOST}"
+              : "${DB_PORT:?Missing DB_PORT}"
+              : "${MYSQL_DATABASE:?Missing MYSQL_DATABASE}"
+              : "${MYSQL_USER:?Missing MYSQL_USER}"
+              : "${MYSQL_PASSWORD:?Missing MYSQL_PASSWORD}"
+
+              cat > /tmp/opensis-check-schema.php <<'PHP'
+              <?php
+              mysqli_report(MYSQLI_REPORT_OFF);
+              $connection = @new mysqli(getenv('DB_HOST'), getenv('MYSQL_USER'), getenv('MYSQL_PASSWORD'), getenv('MYSQL_DATABASE'), (int) getenv('DB_PORT'));
+              if ($connection->connect_errno) {
+                  fwrite(STDERR, 'Database connectivity check failed: ' . $connection->connect_error . PHP_EOL);
+                  exit(2);
+              }
+              $result = $connection->query("SHOW TABLES LIKE 'app'");
+              exit(($result && $result->num_rows > 0) ? 0 : 1);
+              PHP
+
+              if php /tmp/opensis-check-schema.php; then
+                {
+                  printf '%s\n' '<?php'
+                  printf "\$DatabaseType = 'mysqli';\n"
+                  printf "\$DatabaseServer = '%s';\n" "${DB_HOST}"
+                  printf "\$DatabaseUsername = '%s';\n" "${MYSQL_USER}"
+                  printf "\$DatabasePassword = '%s';\n" "${MYSQL_PASSWORD}"
+                  printf "\$DatabaseName = '%s';\n" "${MYSQL_DATABASE}"
+                  printf "\$DatabasePort = '%s';\n" "${DB_PORT}"
+                  printf '%s\n' '?>'
+                } > /var/www/openSIS/Data.php
+
+                chown www-data:www-data /var/www/openSIS/Data.php
+                chmod 644 /var/www/openSIS/Data.php
+                echo "[entrypoint] Existing schema detected. Data.php rendered."
+              else
+                rm -f /var/www/openSIS/Data.php
+                echo "[entrypoint] No existing schema detected yet. Deferring to install/index.php."
+              fi
+
+              rm -f /tmp/opensis-check-schema.php
+
+              SESSION_CONF_FILE="${PHP_SESSION_CONF_FILE:-/usr/local/etc/php/conf.d/zz-session-runtime.ini}"
+              : > "$SESSION_CONF_FILE"
+
+              if [ -n "${PHP_SESSION_SAVE_HANDLER:-}" ]; then
+                echo "session.save_handler = ${PHP_SESSION_SAVE_HANDLER}" >> "$SESSION_CONF_FILE"
+              fi
+
+              if [ -n "${PHP_SESSION_SAVE_PATH:-}" ]; then
+                echo "session.save_path = \"${PHP_SESSION_SAVE_PATH}\"" >> "$SESSION_CONF_FILE"
+              fi
+
+              if [ -n "${PHP_SESSION_COOKIE_SECURE:-}" ]; then
+                echo "session.cookie_secure = ${PHP_SESSION_COOKIE_SECURE}" >> "$SESSION_CONF_FILE"
+              fi
+
+              if [ -n "${PHP_SESSION_COOKIE_SAMESITE:-}" ]; then
+                echo "session.cookie_samesite = ${PHP_SESSION_COOKIE_SAMESITE}" >> "$SESSION_CONF_FILE"
+              fi
+
+              echo "[entrypoint] Environment successfully loaded."
+              exec docker-php-entrypoint apache2-foreground
+          env:
+            - name: APP_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: opensis-app-config
+                  key: APP_ENV
+            - name: APP_SECRETS_FILE
+              valueFrom:
+                configMapKeyRef:
+                  name: opensis-app-config
+                  key: APP_SECRETS_FILE
+            - name: APP_SECRETS_WAIT_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: opensis-app-config
+                  key: APP_SECRETS_WAIT_TIMEOUT
+            - name: PHP_SESSION_SAVE_HANDLER
+              valueFrom:
+                configMapKeyRef:
+                  name: opensis-app-config
+                  key: PHP_SESSION_SAVE_HANDLER
+                  optional: true
+            - name: PHP_SESSION_SAVE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: opensis-app-config
+                  key: PHP_SESSION_SAVE_PATH
+                  optional: true
+            - name: PHP_SESSION_COOKIE_SECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: opensis-app-config
+                  key: PHP_SESSION_COOKIE_SECURE
+                  optional: true
+            - name: PHP_SESSION_COOKIE_SAMESITE
+              valueFrom:
+                configMapKeyRef:
+                  name: opensis-app-config
+                  key: PHP_SESSION_COOKIE_SAMESITE
+                  optional: true
+          volumeMounts:
+            - name: app-secrets
+              mountPath: /opt/opensis/secrets
+              readOnly: true
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+              httpHeaders:
+                - name: User-Agent
+                  value: Mozilla/5.0
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+              httpHeaders:
+                - name: User-Agent
+                  value: Mozilla/5.0
+            initialDelaySeconds: 40
+            periodSeconds: 20
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+              httpHeaders:
+                - name: User-Agent
+                  value: Mozilla/5.0
+            failureThreshold: 30
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensis-ui
+spec:
+  selector:
+    app: opensis-ui
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

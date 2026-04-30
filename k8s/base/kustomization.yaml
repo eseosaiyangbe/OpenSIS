@@ -1,9 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-configMapGenerator:
-  - name: opensis-k8s-scaffold
-    literals:
-      - status=scaffold
-      - owner=devops-easy-learning
-generatorOptions:
-  disableNameSuffixHash: true
+resources:
+  - app-config.yaml
+  - db-config.yaml
+  - serviceaccounts.yaml
+  - redis.yaml
+  - db.yaml
+  - ui.yaml
+  - ingress.yaml
+  - networkpolicy.yaml

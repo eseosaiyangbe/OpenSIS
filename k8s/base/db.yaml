@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: opensis-db
+spec:
+  serviceName: opensis-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensis-db
+  template:
+    metadata:
+      labels:
+        app: opensis-db
+    spec:
+      serviceAccountName: opensis-db
+      volumes:
+        - name: db-config
+          configMap:
+            name: opensis-db-config
+            defaultMode: 0755
+        - name: db-secrets
+          secret:
+            secretName: opensis-db-secrets
+            items:
+              - key: db.env
+                path: db.env
+      containers:
+        - name: mariadb
+          image: mariadb:10.11.7
+          imagePullPolicy: IfNotPresent
+          command:
+            - /usr/local/bin/mariadb-entrypoint.sh
+          ports:
+            - name: mysql
+              containerPort: 3306
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+            - name: db-config
+              mountPath: /etc/mysql/conf.d/strict_mode.cnf
+              subPath: strict_mode.cnf
+            - name: db-config
+              mountPath: /usr/local/bin/mariadb-entrypoint.sh
+              subPath: mariadb-entrypoint.sh
+            - name: db-secrets
+              mountPath: /opt/opensis/secrets
+              readOnly: true
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - . /opt/opensis/secrets/db.env && mysqladmin ping -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" --silent
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: mysql
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensis-db
+spec:
+  selector:
+    app: opensis-db
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql

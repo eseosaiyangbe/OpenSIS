@@ -1,5 +1,81 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+
 namespace: opensis-dev
+
 resources:
+  - namespace.yaml
+  - vault-serviceaccount.yaml
+  - vault-secret-store.yaml
+  - vault-app-external-secret.yaml
+  - vault-db-external-secret.yaml
   - ../../base
+
+images:
+  - name: opensis-ui
+    newName: opensis-ui
+    newTag: dev
+
+labels:
+  - pairs:
+      cluster: k3s
+      environment: dev
+      secret-source: vault
+    includeSelectors: false
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: opensis-app-config
+    patch: |-
+      - op: replace
+        path: /data/APP_ENV
+        value: dev
+      - op: replace
+        path: /data/PHP_SESSION_COOKIE_SECURE
+        value: "0"
+      - op: replace
+        path: /data/PHP_SESSION_COOKIE_SAMESITE
+        value: Lax
+  - target:
+      kind: Deployment
+      name: opensis-ui
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 10m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 192Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 250m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 512Mi
+  - target:
+      kind: StatefulSet
+      name: opensis-db
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 25m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 384Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 500m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 768Mi
+      - op: replace
+        path: /spec/volumeClaimTemplates/0/spec/resources/requests/storage
+        value: 12Gi
+  - target:
+      kind: Ingress
+      name: opensis-ui
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: opensis.devops.local
