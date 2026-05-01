@@ -6,6 +6,7 @@ data:
   APP_ENV: production
   APP_SECRETS_FILE: /opt/opensis/secrets/app.env
   APP_SECRETS_WAIT_TIMEOUT: "180"
+  VAULT_K8S_ROLE: opensis-prod
   PHP_SESSION_SAVE_HANDLER: redis
   PHP_SESSION_SAVE_PATH: tcp://opensis-session-redis:6379
   PHP_SESSION_COOKIE_SECURE: "1"

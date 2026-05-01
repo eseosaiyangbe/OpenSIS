@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensis-apache-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensis-apache-exporter
+  template:
+    metadata:
+      labels:
+        app: opensis-apache-exporter
+    spec:
+      serviceAccountName: opensis-apache-exporter
+      containers:
+        - name: apache-exporter
+          image: lusotycoon/apache-exporter:v1.0.10
+          imagePullPolicy: IfNotPresent
+          args:
+            - --scrape_uri=http://opensis-ui/server-status?auto
+            - --web.listen-address=:9117
+            - --custom_headers=X-OpenSIS-Metrics:apache-exporter
+          ports:
+            - name: metrics
+              containerPort: 9117
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 15m
+              memory: 48Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensis-apache
+spec:
+  selector:
+    app: opensis-apache-exporter
+  ports:
+    - name: metrics
+      port: 9117
+      targetPort: metrics

@@ -63,4 +63,9 @@ echo "[opensis-k8s] Verifying MariaDB and Redis"
 kubectl exec -n opensis-dev statefulset/opensis-db -- sh -lc '. /opt/opensis/secrets/db.env && mysqladmin ping -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" --silent' >/dev/null
 kubectl exec -n opensis-dev deploy/opensis-session-redis -- sh -lc 'redis-cli ping | grep -q PONG' >/dev/null
 
+echo "[opensis-k8s] Verifying observability exporters"
+kubectl exec -n opensis-dev deploy/opensis-mysqld-exporter -- sh -lc 'wget -qO- http://127.0.0.1:9104/metrics | grep -q "^mysql_up "' >/dev/null
+kubectl exec -n opensis-dev deploy/opensis-apache-exporter -- sh -lc 'wget -qO- http://127.0.0.1:9117/metrics | grep -q "^apache_up "' >/dev/null
+kubectl exec -n opensis-dev deploy/opensis-vault-synthetic-exporter -- sh -lc 'wget -qO- http://127.0.0.1:9105/metrics | grep -q "^opensis_vault_health_status "' >/dev/null
+
 echo "[opensis-k8s] Verification passed"

@@ -9,6 +9,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 VAULT_ADDR = os.environ.get("VAULT_ADDR", "http://vault:8200").rstrip("/")
 APP_ENV = os.environ.get("APP_ENV", "dev")
 LISTEN_PORT = int(os.environ.get("PORT", "9105"))
+VAULT_K8S_ROLE = os.environ.get("VAULT_K8S_ROLE", "").strip()
+VAULT_K8S_TOKEN_FILE = os.environ.get(
+    "VAULT_K8S_TOKEN_FILE",
+    "/var/run/secrets/kubernetes.io/serviceaccount/token",
+)
 
 CHECKS = (
     {
@@ -82,6 +87,25 @@ def approle_login(approle_dir):
     return False, "", payload.get("errors", payload.get("error", "approle login failed"))
 
 
+def kubernetes_login():
+    try:
+        jwt = read_file(VAULT_K8S_TOKEN_FILE)
+    except OSError as error:
+        return False, "", f"kubernetes auth token read failed: {error}"
+
+    status, payload = request_json(
+        "POST",
+        "auth/kubernetes/login",
+        {"role": VAULT_K8S_ROLE, "jwt": jwt},
+    )
+
+    token = payload.get("auth", {}).get("client_token")
+    if status == 200 and token:
+        return True, token, ""
+
+    return False, "", payload.get("errors", payload.get("error", "kubernetes login failed"))
+
+
 def check_vault_health():
     status, payload = request_json("GET", "sys/health")
     initialized = bool(payload.get("initialized"))
@@ -98,7 +122,11 @@ def check_vault_health():
 
 
 def check_secret_read(check):
-    login_ok, token, login_error = approle_login(check["approle_dir"])
+    if VAULT_K8S_ROLE:
+        login_ok, token, login_error = kubernetes_login()
+    else:
+        login_ok, token, login_error = approle_login(check["approle_dir"])
+
     if not login_ok:
         return {
             "success": 0,

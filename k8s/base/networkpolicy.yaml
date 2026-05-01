@@ -14,6 +14,22 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: traefik
+        - podSelector:
+            matchLabels:
+              app: opensis-apache-exporter
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - platform-observability-dev
+                  - platform-observability-prod
+          podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - blackbox-exporter
       ports:
         - protocol: TCP
           port: 80
@@ -58,6 +74,9 @@ spec:
         - podSelector:
             matchLabels:
               app: opensis-ui
+        - podSelector:
+            matchLabels:
+              app: opensis-mysqld-exporter
       ports:
         - protocol: TCP
           port: 3306
@@ -71,6 +90,41 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: opensis-observability-exporters
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - opensis-mysqld-exporter
+          - opensis-apache-exporter
+          - opensis-vault-synthetic-exporter
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - platform-observability-dev
+                  - platform-observability-prod
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 9104
+        - protocol: TCP
+          port: 9105
+        - protocol: TCP
+          port: 9117
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

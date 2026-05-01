@@ -1,5 +1,15 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: opensis-observability-scripts
+    files:
+      - vault-synthetic-exporter.py=observability/vault-synthetic-exporter.py
+      - mysqld-exporter-entrypoint.sh=observability/mysqld-exporter-entrypoint.sh
+
 resources:
   - app-config.yaml
   - db-config.yaml
@@ -7,5 +17,8 @@ resources:
   - redis.yaml
   - db.yaml
   - ui.yaml
+  - observability-mysqld-exporter.yaml
+  - observability-apache-exporter.yaml
+  - observability-vault-synthetic.yaml
   - ingress.yaml
   - networkpolicy.yaml

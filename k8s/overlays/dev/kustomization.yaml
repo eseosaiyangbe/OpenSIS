@@ -34,6 +34,9 @@ patches:
         path: /data/APP_ENV
         value: dev
       - op: replace
+        path: /data/VAULT_K8S_ROLE
+        value: opensis-dev
+      - op: replace
         path: /data/PHP_SESSION_COOKIE_SECURE
         value: "0"
       - op: replace

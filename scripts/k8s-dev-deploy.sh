@@ -120,9 +120,12 @@ kubectl wait --for=condition=Ready externalsecret/opensis-db-secrets-external -n
 echo "[opensis-k8s] Waiting for supporting services"
 kubectl rollout status deployment/opensis-session-redis -n opensis-dev --timeout=180s
 kubectl rollout status statefulset/opensis-db -n opensis-dev --timeout=300s
+kubectl rollout status deployment/opensis-mysqld-exporter -n opensis-dev --timeout=180s
+kubectl rollout status deployment/opensis-vault-synthetic-exporter -n opensis-dev --timeout=180s
 
 echo "[opensis-k8s] Waiting for application rollout"
 kubectl rollout status deployment/opensis-ui -n opensis-dev --timeout=300s
+kubectl rollout status deployment/opensis-apache-exporter -n opensis-dev --timeout=180s
 
 echo "[opensis-k8s] Verifying live path"
 "${ROOT_DIR}/scripts/k8s-dev-verify.sh" --hostname "${HOSTNAME_OVERRIDE}"
