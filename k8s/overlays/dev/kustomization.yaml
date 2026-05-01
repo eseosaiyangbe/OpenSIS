@@ -24,6 +24,8 @@ labels:
     includeSelectors: false
 
 patches:
+  - path: dev-resource-requests-patch.yaml
+  - path: dev-rollout-strategy-patch.yaml
   - target:
       kind: ConfigMap
       name: opensis-app-config

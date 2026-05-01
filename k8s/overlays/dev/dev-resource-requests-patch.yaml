@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensis-ui
+spec:
+  template:
+    spec:
+      containers:
+        - name: opensis-ui
+          resources:
+            requests:
+              cpu: "25m"
+              memory: "192Mi"
+            limits:
+              cpu: "250m"
+              memory: "512Mi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensis-session-redis
+spec:
+  template:
+    spec:
+      containers:
+        - name: redis
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "24Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: opensis-db
+spec:
+  template:
+    spec:
+      containers:
+        - name: mariadb
+          resources:
+            requests:
+              cpu: "25m"
+              memory: "320Mi"
+            limits:
+              cpu: "500m"
+              memory: "768Mi"
