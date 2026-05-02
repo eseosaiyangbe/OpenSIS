@@ -79,13 +79,29 @@ fi
 echo "[opensis-k8s] Running end-to-end UI validation via port-forward"
 kubectl port-forward -n opensis-dev svc/opensis-ui 38088:80 >/tmp/opensis-k8s-port-forward.log 2>&1 &
 PORT_FORWARD_PID="$!"
+PORT_FORWARD_READY="false"
 for _ in {1..20}; do
-  port_forward_code="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:38088/ || true)"
+  port_forward_code="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:38088/ 2>/dev/null || true)"
   if [[ "${port_forward_code}" == "200" || "${port_forward_code}" == "302" ]]; then
+    PORT_FORWARD_READY="true"
     break
   fi
   sleep 1
 done
+
+if [[ "${PORT_FORWARD_READY}" != "true" ]]; then
+  echo "ERROR: OpenSIS UI port-forward did not become ready within the expected time window." >&2
+  echo "INFO: Port-forward log follows:" >&2
+  sed -n '1,120p' /tmp/opensis-k8s-port-forward.log >&2 || true
+  exit 1
+fi
+
+echo
+echo "OpenSIS Validation — environment: dev"
+echo "Base URL: http://127.0.0.1:38088"
+echo "─────────────────────────────────────────"
+echo
+
 install_code="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:38088/install/index.php)"
 if [[ "${install_code}" != "200" && "${install_code}" != "302" ]]; then
   echo "ERROR: Expected OpenSIS installer path to return HTTP 200 or 302, got ${install_code}." >&2
