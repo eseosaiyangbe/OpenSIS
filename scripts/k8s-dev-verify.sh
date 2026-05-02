@@ -13,8 +13,27 @@ Options:
 EOF
 }
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOSTNAME_OVERRIDE="opensis.devops.local"
+PORT_FORWARD_PID=""
+
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "ERROR: Required command not found: $1" >&2
+    exit 1
+  fi
+}
+
+cleanup() {
+  if [[ -n "${PORT_FORWARD_PID}" ]]; then
+    kill "${PORT_FORWARD_PID}" >/dev/null 2>&1 || true
+    wait "${PORT_FORWARD_PID}" 2>/dev/null || true
+  fi
+}
+
+trap cleanup EXIT
+
+require_command kubectl
+require_command curl
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -45,14 +64,31 @@ if [[ -z "${TRAEFIK_ADDR}" ]]; then
 fi
 
 echo "[opensis-k8s] Traefik address: ${TRAEFIK_ADDR}"
+echo "[opensis-k8s] Verifying Kubernetes objects"
 kubectl get pods -n opensis-dev
 kubectl get svc -n opensis-dev
 kubectl get ingress -n opensis-dev
 
-echo "[opensis-k8s] Verifying ingress response"
+echo "[opensis-k8s] Verifying ingress endpoints"
 http_code="$(curl -sS -o /dev/null -w '%{http_code}' -H "Host: ${HOSTNAME_OVERRIDE}" "http://${TRAEFIK_ADDR}/")"
 if [[ "${http_code}" != "200" && "${http_code}" != "302" ]]; then
   echo "ERROR: Expected OpenSIS ingress to return HTTP 200 or 302, got ${http_code}." >&2
+  exit 1
+fi
+
+echo "[opensis-k8s] Running end-to-end UI validation via port-forward"
+kubectl port-forward -n opensis-dev svc/opensis-ui 38088:80 >/tmp/opensis-k8s-port-forward.log 2>&1 &
+PORT_FORWARD_PID="$!"
+for _ in {1..20}; do
+  port_forward_code="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:38088/ || true)"
+  if [[ "${port_forward_code}" == "200" || "${port_forward_code}" == "302" ]]; then
+    break
+  fi
+  sleep 1
+done
+install_code="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:38088/install/index.php)"
+if [[ "${install_code}" != "200" && "${install_code}" != "302" ]]; then
+  echo "ERROR: Expected OpenSIS installer path to return HTTP 200 or 302, got ${install_code}." >&2
   exit 1
 fi
 
