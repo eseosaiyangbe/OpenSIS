@@ -87,6 +87,9 @@ patches:
       - op: replace
         path: /metadata/annotations/traefik.ingress.kubernetes.io~1router.entrypoints
         value: web,websecure
+      - op: add
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: letsencrypt-prod
       - op: replace
         path: /spec/rules/0/host
         value: opensis.prod.example.com
