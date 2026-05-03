@@ -93,10 +93,10 @@ patches:
         value: letsencrypt-prod
       - op: replace
         path: /spec/rules/0/host
-        value: opensis.prod.example.com
+        value: opensis.eseosadevbox.com
       - op: add
         path: /spec/tls
         value:
           - hosts:
-              - opensis.prod.example.com
+              - opensis.eseosadevbox.com
             secretName: opensis-prod-tls
