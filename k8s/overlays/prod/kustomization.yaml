@@ -9,6 +9,8 @@ resources:
   - vault-secret-store.yaml
   - vault-app-external-secret.yaml
   - vault-db-external-secret.yaml
+  - prod-hpa.yaml
+  - prod-pdb.yaml
   - ../../base
 
 images:
@@ -88,3 +90,9 @@ patches:
       - op: replace
         path: /spec/rules/0/host
         value: opensis.prod.example.com
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts:
+              - opensis.prod.example.com
+            secretName: opensis-prod-tls
