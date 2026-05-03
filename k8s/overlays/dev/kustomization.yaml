@@ -84,3 +84,16 @@ patches:
       - op: replace
         path: /spec/rules/0/host
         value: opensis.devops.local
+      - op: add
+        path: /spec/rules/-
+        value:
+          host: opensis.eseosadevbox.com
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: opensis-ui
+                    port:
+                      number: 80
