@@ -26,6 +26,7 @@ labels:
     includeSelectors: false
 
 patches:
+  - path: prod-placement-patch.yaml
   - target:
       kind: Deployment
       name: opensis-ui
