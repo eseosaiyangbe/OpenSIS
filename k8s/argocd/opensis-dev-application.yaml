@@ -6,9 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/eseosaiyangbe/DevOps-Easy-Learning.git
+    repoURL: https://github.com/eseosaiyangbe/OpenSIS.git
     targetRevision: main
-    path: OpenSIS/k8s/overlays/dev
+    path: k8s/overlays/dev
   destination:
     server: https://kubernetes.default.svc
     namespace: opensis-dev
@@ -18,4 +18,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-

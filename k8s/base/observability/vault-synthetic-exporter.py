@@ -18,12 +18,12 @@ VAULT_K8S_TOKEN_FILE = os.environ.get(
 CHECKS = (
     {
         "name": "opensis-app",
-        "path": f"kv/data/devops-easy-learning/opensis/{APP_ENV}/app",
+        "path": f"kv/data/internal-developer-platform/opensis/{APP_ENV}/app",
         "approle_dir": "/vault/approle-app",
     },
     {
         "name": "opensis-db",
-        "path": f"kv/data/devops-easy-learning/opensis/{APP_ENV}/db",
+        "path": f"kv/data/internal-developer-platform/opensis/{APP_ENV}/db",
         "approle_dir": "/vault/approle-db",
     },
 )

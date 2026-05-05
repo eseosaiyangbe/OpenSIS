@@ -3,6 +3,6 @@ kind: Namespace
 metadata:
   name: opensis-dev
   labels:
-    app.kubernetes.io/part-of: devops-easy-learning
+    app.kubernetes.io/part-of: internal-developer-platform
     environment: dev
     observability.dev/app: opensis

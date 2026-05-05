@@ -3,6 +3,6 @@ kind: Namespace
 metadata:
   name: opensis-prod
   labels:
-    app.kubernetes.io/part-of: devops-easy-learning
+    app.kubernetes.io/part-of: internal-developer-platform
     environment: prod
     observability.dev/app: opensis
