@@ -195,7 +195,11 @@ require_once('functions/langFnc.php');
                                     <div class="col-md-12">
                                         <button name='log' type="submit" class="btn btn-success btn-lg btn-block" onMouseDown="set_ck();
                                             Set_Cookie('dhtmlgoodies_tab_menu_tabIndex', '', -1)"><?=_login?></button>
-                                
+                                    </div>
+                                </div>
+                                <div class="row" style="margin-top: 16px;">
+                                    <div class="col-md-12 text-center">
+                                        <a href="index.php" class="btn btn-link">Back to welcome</a>
                                     </div>
                                 </div>
                                 <script type="text/javascript">

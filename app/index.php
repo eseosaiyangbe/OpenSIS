@@ -709,8 +709,12 @@ if (optional_param('modfunc', '', PARAM_ALPHA) == 'create_account') {
 }
 
 if (!$_SESSION['STAFF_ID'] && !$_SESSION['STUDENT_ID'] && $_REQUEST['modfunc'] != 'create_account') {
-    //Login
-    require "LoginInc.php";
+    // Public auth landing or login
+    if (optional_param('USERNAME', '', PARAM_RAW) || optional_param('PASSWORD', '', PARAM_RAW) || optional_param('view', '', PARAM_ALPHA) == 'login' || !empty($error)) {
+        require "LoginInc.php";
+    } else {
+        require "LandingInc.php";
+    }
 } elseif ($_REQUEST['modfunc'] != 'create_account') {
     echo '<!DOCTYPE html>';
     echo '<html>';
