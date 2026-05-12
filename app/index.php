@@ -28,6 +28,7 @@
 #***************************************************************************************
 //declare(strict_types=1);
 error_reporting(0);
+ini_set('display_errors', '0');
 
 ini_set('session.cookie_httponly', '1');
 ini_set('session.cookie_samesite', 'Strict');
@@ -691,18 +692,19 @@ if (optional_param('USERNAME', '', PARAM_RAW) && optional_param('PASSWORD', '', 
 
 
 
-if (optional_param('modfunc', '', PARAM_ALPHA) == 'create_account') {
+if ($_REQUEST['modfunc'] == 'create_account') {
     Warehouse('header');
     $_openSIS['allow_edit'] = true;
-    if ($_REQUEST['staff']['USERNAME'])
+    if ($_REQUEST['staff']['USERNAME']) {
         $_REQUEST['modfunc'] = 'update';
-    else
+    } else {
         $_REQUEST['staff_id'] = 'new';
+    }
     include('modules/users/User.php');
 
-    if (!$_REQUEST['staff']['USERNAME'])
+    if (!$_REQUEST['staff']['USERNAME']) {
         Warehouse('footer_plain');
-    else {
+    } else {
         $note[] = '' . _yourAccountHasBeenCreated . '.  ' . _youWillBeNotifiedByEmailWhenItIsVerifiedBySchoolAdministrationAndYouCanLogIn . '.';
         session_destroy();
     }

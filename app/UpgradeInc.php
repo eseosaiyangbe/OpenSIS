@@ -32,12 +32,12 @@ if (file_exists("Data.php"))
 {
     include("Data.php");
 }
-if($DatabaseServer == '')
+if (file_exists("Data.php") && $DatabaseServer == '')
 {
     // redirect user to the install procedure
     header('Location: install/index.php');
 }
-else {
+elseif (file_exists("Data.php")) {
     // Server Names and Paths
     db_start();
 
