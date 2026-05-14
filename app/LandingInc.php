@@ -1,5 +1,4 @@
 <?php
-# OpenSIS landing page for student access
 error_reporting(0);
 
 include 'lang/supportedLanguages.php';
@@ -15,56 +14,220 @@ if (isset($_REQUEST['language']) && in_array($_REQUEST['language'], array_keys($
 $_SESSION['language'] = $langCode2;
 include "lang/lang_" . $_SESSION['language'] . ".php";
 
+$registration_notice = '';
+if (!empty($_SESSION['public_registration_notice'])) {
+    $registration_notice = $_SESSION['public_registration_notice'];
+    unset($_SESSION['public_registration_notice']);
+}
+
 $extra_header  = '';
 $extra_header .= '<meta http-equiv="Content-type" content="text/html;charset=UTF-8">';
+$extra_header .= '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">';
+$extra_header .= '<title>openSIS Student Information System</title>';
+$extra_header .= '<link rel="shortcut icon" href="favicon.ico">';
+$extra_header .= '<noscript><meta http-equiv="refresh" content="0;url=EnableJavascript.php" /></noscript>';
 $extra_header .= '<link href="assets/css/icons/icomoon/styles.css" rel="stylesheet" type="text/css">';
 $extra_header .= '<link rel="stylesheet" type="text/css" href="assets/css/bootstrap.min.css">';
 $extra_header .= '<link rel="stylesheet" type="text/css" href="assets/css/login.css">';
 $extra_header .= '<link href="assets/css/extras/css-checkbox-switch.css" rel="stylesheet">';
-Warehouse('header', $extra_header);
-?>
+$extra_header .= '<style type="text/css">
+    .public-entry-shell {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 16px;
+        background:
+            radial-gradient(circle at top, rgba(94, 234, 212, 0.28), rgba(94, 234, 212, 0) 34%),
+            linear-gradient(135deg, #0f4c81 0%, #2f80c2 48%, #8aa1b1 100%);
+    }
 
-<BODY onLoad="document.getElementById('loginLink').focus();">
-    <section class="login">
-        <div class="login-wrapper">
-            <div class="panel">
-                <div class="panel-heading">
-                    <div class="logo">
-                        <img src="assets/images/opensis_logo.png" alt="openSIS" />
+    .public-entry-card {
+        width: 100%;
+        max-width: 880px;
+        background: rgba(255, 255, 255, 0.96);
+        border-radius: 24px;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+        overflow: hidden;
+    }
+
+    .public-entry-brand {
+        padding: 36px 40px 28px;
+        background: linear-gradient(160deg, rgba(15, 76, 129, 0.96) 0%, rgba(41, 128, 185, 0.92) 100%);
+        color: #fff;
+        text-align: center;
+    }
+
+    .public-entry-brand img {
+        max-width: 170px;
+        margin-bottom: 18px;
+    }
+
+    .public-entry-brand h1 {
+        margin: 0 0 10px;
+        font-size: 32px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+
+    .public-entry-brand p {
+        margin: 0 auto;
+        max-width: 560px;
+        font-size: 16px;
+        line-height: 1.6;
+        color: rgba(255, 255, 255, 0.88);
+    }
+
+    .public-entry-body {
+        padding: 36px 40px 40px;
+    }
+
+    .public-entry-status {
+        margin-bottom: 24px;
+    }
+
+    .entry-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 28px;
+    }
+
+    .entry-action-card {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 124px;
+        padding: 22px 24px;
+        border-radius: 18px;
+        text-decoration: none;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
+    }
+
+    .entry-action-card:hover,
+    .entry-action-card:focus {
+        text-decoration: none;
+        transform: translateY(-2px);
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.16);
+        opacity: 0.98;
+    }
+
+    .entry-action-card:focus {
+        outline: 3px solid rgba(59, 130, 246, 0.24);
+        outline-offset: 3px;
+    }
+
+    .entry-action-card.primary {
+        background: linear-gradient(135deg, #1d84e8 0%, #1565c0 100%);
+        color: #ffffff;
+    }
+
+    .entry-action-card.success {
+        background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+        color: #ffffff;
+    }
+
+    .entry-action-eyebrow {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        opacity: 0.92;
+    }
+
+    .entry-action-title {
+        display: block;
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .entry-action-copy {
+        display: block;
+        margin-top: 10px;
+        font-size: 14px;
+        line-height: 1.5;
+        opacity: 0.92;
+    }
+
+    .public-entry-footer {
+        margin-top: 28px;
+        text-align: center;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    @media (max-width: 767px) {
+        .public-entry-brand,
+        .public-entry-body {
+            padding: 28px 22px;
+        }
+
+        .public-entry-brand h1 {
+            font-size: 28px;
+        }
+
+        .entry-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .entry-action-card {
+            min-height: 112px;
+            padding: 20px;
+        }
+
+        .entry-action-title {
+            font-size: 22px;
+        }
+    }
+</style>';
+
+echo '<!DOCTYPE html><html lang="en" dir="' . ((langDirection() == 'rtl') ? 'rtl' : 'ltr') . '"><head>';
+echo '<meta charset="utf-8">';
+echo $extra_header;
+echo '</head>';
+?>
+<body>
+    <section class="public-entry-shell">
+        <div class="public-entry-card">
+            <div class="public-entry-brand">
+                <img src="assets/images/opensis_logo.png" alt="openSIS" />
+                <h1>Welcome to openSIS</h1>
+                <p>Access the student portal or start a new registration request. New registrations remain pending until school administration reviews and activates the account.</p>
+            </div>
+
+            <div class="public-entry-body">
+                <?php if (!empty($registration_notice)) { ?>
+                    <div class="alert alert-success public-entry-status" role="alert">
+                        <?php echo $registration_notice; ?>
                     </div>
-                    <h3><?= _studentInformationSystem ?></h3>
+                <?php } ?>
+
+                <div class="entry-actions">
+                    <a id="loginLink" href="index.php?view=login&language=<?php echo htmlspecialchars($langCode2, ENT_QUOTES, 'UTF-8'); ?>" class="entry-action-card primary">
+                        <span class="entry-action-eyebrow">Already a student?</span>
+                        <span class="entry-action-title">Login</span>
+                        <span class="entry-action-copy">Use your approved portal credentials to continue to the student experience.</span>
+                    </a>
+
+                    <a href="PublicCreateAccount.php?language=<?php echo htmlspecialchars($langCode2, ENT_QUOTES, 'UTF-8'); ?>" class="entry-action-card success">
+                        <span class="entry-action-eyebrow">New student?</span>
+                        <span class="entry-action-title">Register</span>
+                        <span class="entry-action-copy">Submit a registration request for administrative review and account activation.</span>
+                    </a>
                 </div>
-                <div class="panel-body">
-                    <div class="row">
-                        <div class="col-md-12 text-center">
-                            <h2>Welcome to openSIS</h2>
-                            <p class="text-muted">Access the student portal or register for a new student account.</p>
-                        </div>
-                    </div>
-                    <div class="row" style="margin-top: 30px;">
-                        <div class="col-md-6">
-                            <a id="loginLink" href="index.php?view=login&language=<?= $langCode2 ?>" class="btn btn-primary btn-lg btn-block">Already a student? Login.</a>
-                        </div>
-                        <div class="col-md-6">
-                            <a href="index.php?modfunc=create_account&language=<?= $langCode2 ?>" class="btn btn-success btn-lg btn-block">New Student? Register.</a>
-                        </div>
-                    </div>
+
+                <div class="public-entry-footer">
+                    <?php echo _footerText; ?>
                 </div>
-                <footer style="margin-top: 20px; text-align: center;">
-                    <?= _footerText ?>
-                </footer>
             </div>
         </div>
     </section>
 
     <script src="assets/js/core/libraries/jquery.min.js"></script>
     <script type="text/javascript" src="assets/js/plugins/forms/selects/select2.min.js"></script>
-    <script type="text/javascript">
-        var language = document.getElementById('language');
-        if (language) {
-            language.onchange = function() {
-                window.location = 'index.php?language=' + this.value;
-            };
-        }
-    </script>
 </body>
+</html>

@@ -90,6 +90,48 @@ if (optional_param('register', '', PARAM_NOTAGS)) {
         header("Location:register.php");
 }
 
+if (optional_param('modfunc', '', PARAM_ALPHAEXT) == 'create_account') {
+    if (empty($_SESSION['STAFF_ID']) && empty($_SESSION['STUDENT_ID'])) {
+        $registration_language = optional_param('language', 'en', PARAM_ALPHAEXT);
+        header('Location: PublicCreateAccount.php?language=' . urlencode($registration_language));
+    } else {
+        include('modules/users/User.php');
+    }
+    exit;
+}
+
+function opensis_installation_ready()
+{
+    return file_exists(__DIR__ . '/Data.php');
+}
+
+function opensis_redirect_after_login($url)
+{
+    if (!headers_sent()) {
+        header('Location: ' . $url, true, 302);
+    }
+
+    $safe_url = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+
+    echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">';
+    echo '<meta http-equiv="refresh" content="0;url=' . $safe_url . '">';
+    echo '<title>Redirecting...</title>';
+    echo '<script>window.location.replace(' . json_encode($url) . ');</script>';
+    echo '</head><body>';
+    echo '<p>Redirecting to <a href="' . $safe_url . '">openSIS portal</a>...</p>';
+    echo '</body></html>';
+    exit;
+}
+
+if (
+    empty($_SESSION['STAFF_ID']) &&
+    empty($_SESSION['STUDENT_ID']) &&
+    !opensis_installation_ready()
+) {
+    header('Location: install/index.php');
+    exit;
+}
+
 if (optional_param('USERNAME', '', PARAM_RAW) && optional_param('PASSWORD', '', PARAM_RAW) && CSRFSecure::ValidateToken(optional_param('TOKEN', '', PARAM_RAW))) {
     db_start();
 
@@ -393,6 +435,7 @@ if (optional_param('USERNAME', '', PARAM_RAW) && optional_param('PASSWORD', '', 
 
     if ($login_RET && $login_RET[1]['IS_DISABLE'] != 'Y') {
         $_SESSION['STAFF_ID'] = $login_RET[1]['STAFF_ID'];
+        $_SESSION['staff_id'] = $login_RET[1]['STAFF_ID'];
         //$_SESSION['LAST_LOGIN'] = $login_RET[1]['LAST_LOGIN'];
         $_SESSION['LAST_LOGIN'] = isset($login_RET[1]['LAST_LOGIN']) ? $login_RET[1]['LAST_LOGIN'] : '';
 
@@ -517,6 +560,9 @@ if (optional_param('USERNAME', '', PARAM_RAW) && optional_param('PASSWORD', '', 
             DBQuery("UPDATE login_authentication SET LAST_LOGIN=CURRENT_TIMESTAMP WHERE USER_ID='" . $admin_RET[1]['STAFF_ID'] . "' AND PROFILE_ID='" . $admin_RET[1]['PROFILE_ID'] . "'");
         else
             DBQuery("UPDATE login_authentication SET LAST_LOGIN=CURRENT_TIMESTAMP,FAILED_LOGIN=0 WHERE USER_ID='" . $login_RET[1]['STAFF_ID'] . "' AND PROFILE_ID='" . $login_RET[1]['PROFILE_ID'] . "'");
+
+        session_write_close();
+        opensis_redirect_after_login("Modules.php?modname=miscellaneous/Portal.php&failed_login=" . urlencode($failed_login));
     } elseif (($login_RET && $login_RET[1]['IS_DISABLE'] == 'Y') || ($student_RET && $student_RET[1]['IS_DISABLE'] == 'Y')) {
         $admin_failed_count = DBGet(DBQuery("SELECT FAIL_COUNT FROM system_preference_misc"));
         $ad_f_cnt = $admin_failed_count[1]['FAIL_COUNT'];
@@ -568,7 +614,12 @@ if (optional_param('USERNAME', '', PARAM_RAW) && optional_param('PASSWORD', '', 
         $_SESSION['LAST_LOGIN'] = isset($student_RET[1]['LAST_LOGIN']) ? $student_RET[1]['LAST_LOGIN'] : '';
 
         $_SESSION['UserSyear'] = $student_RET[1]['SYEAR'];
+        $_SESSION['UserSchool'] = $student_RET[1]['SCHOOL_ID'];
+        $_SESSION['CURRENT_SCHOOL_ID'] = $student_RET[1]['SCHOOL_ID'];
         $_SESSION['PROFILE'] = 'student';
+        $_SESSION['PROFILE_ID'] = $student_RET[1]['PROFILE_ID'];
+        $_SESSION['FIRST_NAME'] = $student_RET[1]['FIRST_NAME'];
+        $_SESSION['LAST_NAME'] = $student_RET[1]['LAST_NAME'];
         $check_profile_id = ($profile_id != '' ? $profile_id : $student_RET[1]['PROFILE_ID']);
         $activity = DBGet(DBQuery("SELECT ACTIVITY_DAYS FROM system_preference_misc"));
         $activity = $activity[1]['ACTIVITY_DAYS'];
@@ -590,6 +641,9 @@ if (optional_param('USERNAME', '', PARAM_RAW) && optional_param('PASSWORD', '', 
             DBQuery("UPDATE login_authentication SET LAST_LOGIN=CURRENT_TIMESTAMP WHERE USER_ID='" . $admin_RET[1]['STAFF_ID'] . "' AND PROFILE_ID='" . $admin_RET[1]['PROFILE_ID'] . "' AND USERNAME='" . $admin_RET[1]['USERNAME'] . "'");
         else
             DBQuery("UPDATE login_authentication SET LAST_LOGIN=CURRENT_TIMESTAMP,FAILED_LOGIN=0 WHERE USER_ID='" . $student_RET[1]['STUDENT_ID'] . "' AND PROFILE_ID='" . $student_RET[1]['PROFILE_ID'] . "' AND USERNAME='" . $student_RET[1]['USERNAME'] . "'");
+
+        session_write_close();
+        opensis_redirect_after_login("Modules.php?modname=miscellaneous/Portal.php&failed_login=" . urlencode($failed_login));
     } else {
 
         $openSIS_uname = mysqli_real_escape_string($connection, trim(optional_param('USERNAME', 0, PARAM_RAW)));
@@ -691,24 +745,6 @@ if (optional_param('USERNAME', '', PARAM_RAW) && optional_param('PASSWORD', '', 
 }
 
 
-
-if ($_REQUEST['modfunc'] == 'create_account') {
-    Warehouse('header');
-    $_openSIS['allow_edit'] = true;
-    if ($_REQUEST['staff']['USERNAME']) {
-        $_REQUEST['modfunc'] = 'update';
-    } else {
-        $_REQUEST['staff_id'] = 'new';
-    }
-    include('modules/users/User.php');
-
-    if (!$_REQUEST['staff']['USERNAME']) {
-        Warehouse('footer_plain');
-    } else {
-        $note[] = '' . _yourAccountHasBeenCreated . '.  ' . _youWillBeNotifiedByEmailWhenItIsVerifiedBySchoolAdministrationAndYouCanLogIn . '.';
-        session_destroy();
-    }
-}
 
 if (!$_SESSION['STAFF_ID'] && !$_SESSION['STUDENT_ID'] && $_REQUEST['modfunc'] != 'create_account') {
     // Public auth landing or login

@@ -111,6 +111,11 @@ fi
 echo "[opensis-k8s] Verifying application runtime state"
 kubectl exec -n opensis-dev deploy/opensis-ui -- sh -lc 'test -s /opt/opensis/secrets/app.env && test -f /var/www/openSIS/install/index.php' >/dev/null
 
+schema_has_app="$(kubectl exec -n opensis-dev statefulset/opensis-db -- sh -lc '. /opt/opensis/secrets/db.env && mysql -N -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "SHOW TABLES LIKE '\''app'\'';"' | tr -d '\r')"
+if [[ "${schema_has_app}" == "app" ]]; then
+  kubectl exec -n opensis-dev deploy/opensis-ui -- sh -lc 'test -f /var/www/openSIS/Data.php' >/dev/null
+fi
+
 echo "[opensis-k8s] Verifying MariaDB and Redis"
 kubectl exec -n opensis-dev statefulset/opensis-db -- sh -lc '. /opt/opensis/secrets/db.env && mysqladmin ping -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" --silent' >/dev/null
 kubectl exec -n opensis-dev deploy/opensis-session-redis -- sh -lc 'redis-cli ping | grep -q PONG' >/dev/null

@@ -57,6 +57,9 @@ spec:
               : "${MYSQL_USER:?Missing MYSQL_USER}"
               : "${MYSQL_PASSWORD:?Missing MYSQL_PASSWORD}"
 
+              DB_WAIT_TIMEOUT="${APP_DB_WAIT_TIMEOUT:-180}"
+              DB_WAIT_INTERVAL="${APP_DB_WAIT_INTERVAL:-2}"
+
               cat > /tmp/opensis-check-schema.php <<'PHP'
               <?php
               mysqli_report(MYSQLI_REPORT_OFF);
@@ -69,7 +72,38 @@ spec:
               exit(($result && $result->num_rows > 0) ? 0 : 1);
               PHP
 
-              if php /tmp/opensis-check-schema.php; then
+              schema_state=""
+              db_wait_remaining="${DB_WAIT_TIMEOUT}"
+              while [ "${db_wait_remaining}" -ge 0 ]; do
+                if php /tmp/opensis-check-schema.php; then
+                  schema_state="ready"
+                  break
+                fi
+
+                schema_rc=$?
+                if [ "${schema_rc}" -eq 1 ]; then
+                  schema_state="missing"
+                  break
+                fi
+
+                if [ "${schema_rc}" -ne 2 ]; then
+                  echo "[entrypoint] ERROR: Unexpected schema check exit code ${schema_rc}."
+                  rm -f /tmp/opensis-check-schema.php
+                  exit 1
+                fi
+
+                if [ "${db_wait_remaining}" -eq 0 ]; then
+                  echo "[entrypoint] ERROR: Database remained unreachable for ${DB_WAIT_TIMEOUT} seconds."
+                  rm -f /tmp/opensis-check-schema.php
+                  exit 1
+                fi
+
+                echo "[entrypoint] Database not reachable yet. Retrying in ${DB_WAIT_INTERVAL}s (${db_wait_remaining}s remaining)..."
+                sleep "${DB_WAIT_INTERVAL}"
+                db_wait_remaining=$((db_wait_remaining-DB_WAIT_INTERVAL))
+              done
+
+              if [ "${schema_state}" = "ready" ]; then
                 {
                   printf '%s\n' '<?php'
                   printf "\$DatabaseType = 'mysqli';\n"
@@ -84,9 +118,13 @@ spec:
                 chown www-data:www-data /var/www/openSIS/Data.php
                 chmod 644 /var/www/openSIS/Data.php
                 echo "[entrypoint] Existing schema detected. Data.php rendered."
-              else
+              elif [ "${schema_state}" = "missing" ]; then
                 rm -f /var/www/openSIS/Data.php
                 echo "[entrypoint] No existing schema detected yet. Deferring to install/index.php."
+              else
+                echo "[entrypoint] ERROR: Schema state was not resolved."
+                rm -f /tmp/opensis-check-schema.php
+                exit 1
               fi
 
               rm -f /tmp/opensis-check-schema.php
@@ -128,6 +166,18 @@ spec:
                 configMapKeyRef:
                   name: opensis-app-config
                   key: APP_SECRETS_WAIT_TIMEOUT
+            - name: APP_DB_WAIT_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: opensis-app-config
+                  key: APP_DB_WAIT_TIMEOUT
+                  optional: true
+            - name: APP_DB_WAIT_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: opensis-app-config
+                  key: APP_DB_WAIT_INTERVAL
+                  optional: true
             - name: PHP_SESSION_SAVE_HANDLER
               valueFrom:
                 configMapKeyRef:
