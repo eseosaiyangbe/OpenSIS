@@ -75,12 +75,16 @@ spec:
               schema_state=""
               db_wait_remaining="${DB_WAIT_TIMEOUT}"
               while [ "${db_wait_remaining}" -ge 0 ]; do
-                if php /tmp/opensis-check-schema.php; then
+                set +e
+                php /tmp/opensis-check-schema.php
+                schema_rc=$?
+                set -e
+
+                if [ "${schema_rc}" -eq 0 ]; then
                   schema_state="ready"
                   break
                 fi
 
-                schema_rc=$?
                 if [ "${schema_rc}" -eq 1 ]; then
                   schema_state="missing"
                   break
