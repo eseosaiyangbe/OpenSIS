@@ -195,9 +195,11 @@ Prometheus -> exporters -> Alertmanager / Grafana
 - [scripts/precheck.sh](scripts/precheck.sh)
   Local environment readiness check.
 - [scripts/k8s-start.sh](scripts/k8s-start.sh)
-  Legacy repo-specific `k3s` startup helper retained for reference.
+  Start or resume the repo-local OpenSIS Kubernetes dev slice.
 - [scripts/k8s-stop.sh](scripts/k8s-stop.sh)
-  Legacy repo-specific `k3s` shutdown helper retained for reference.
+  Stop the repo-local OpenSIS Kubernetes dev slice without deleting state.
+- [scripts/k8s-reset.sh](scripts/k8s-reset.sh)
+  Destructively reset the repo-local OpenSIS Kubernetes dev slice for a clean reinstall.
 - [scripts/smoke-dev.sh](scripts/smoke-dev.sh)
   Dev verification helper.
 - [scripts/smoke-prod.sh](scripts/smoke-prod.sh)

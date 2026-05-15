@@ -44,6 +44,7 @@ kubectl get pods -n opensis-dev
 kubectl get pods -n opensis
 ./scripts/k8s-start.sh --help
 ./scripts/k8s-stop.sh --help
+./scripts/k8s-reset.sh --help
 ./scripts/smoke-dev.sh
 ./scripts/smoke-prod.sh
 ```
@@ -88,9 +89,9 @@ If you use `k3s`, remember that some tools expect `~/.kube/config` to exist even
 
 Restart the smallest thing that solves the problem.
 
-### Start the local k3s cluster
+### Start or resume the OpenSIS dev slice
 
-For the local single-node `k3s` lab cluster, use:
+For the repo-local OpenSIS dev slice, use:
 
 ```bash
 ./scripts/k8s-start.sh
@@ -98,34 +99,14 @@ For the local single-node `k3s` lab cluster, use:
 
 This script:
 
-- starts the `k3s` service
-- waits for the Kubernetes API
-- waits for `node/devbox` to become `Ready`
-- optionally cleans stale pods stuck in `Unknown`
-- prints node, Argo CD, and non-running pod status
+- resumes the preserved `opensis-dev` workloads if the namespace already exists
+- falls back to the full deploy path only when the namespace does not exist
+- preserves the MariaDB PVC across normal stop/start cycles
+- can still force a fresh image rollout with `--build`
 
-After a machine reboot or k3s restart, Vault may come back sealed. To start k3s and unseal Vault in one pass:
+### Stop the OpenSIS dev slice safely
 
-```bash
-./scripts/k8s-start.sh --unseal-vault
-```
-
-For the strongest local verification, include smoke checks:
-
-```bash
-./scripts/k8s-start.sh --unseal-vault --smoke
-```
-
-Use this when you want to confirm:
-
-- Vault is unsealed
-- Argo CD apps are healthy
-- dev responds through `https://opensis.dev.local`
-- prod responds through `https://opensis.raysosglobal.com`
-
-### Stop the local k3s cluster
-
-To stop the local `k3s` cluster:
+To stop OpenSIS without deleting its state:
 
 ```bash
 ./scripts/k8s-stop.sh
@@ -133,31 +114,37 @@ To stop the local `k3s` cluster:
 
 This script:
 
-- stops the `k3s` service
-- confirms the service state
-- confirms the Kubernetes API is no longer reachable
+- scales the OpenSIS deployments down to `0`
+- scales the OpenSIS MariaDB statefulset down to `0`
+- preserves the namespace and PVC
+- does not intentionally remove schema or accounts
 
-Expected output includes:
+If you want the command to wait until workloads have terminated:
 
-```text
-k3s service state:
-inactive
-
-Kubernetes API is not reachable, as expected after stopping k3s.
+```bash
+./scripts/k8s-stop.sh --wait
 ```
 
-If your terminal asks for a `sudo` password, that is normal on machines where stopping system services requires elevated permissions.
+### Destructive reset for a clean reinstall
 
-### Important Vault note after restart
+Use this only when you intentionally want to wipe the OpenSIS dev slice and reinstall it from scratch:
 
-Vault uses Shamir unseal in this lab. That means a k3s restart can leave Vault running but sealed.
+```bash
+./scripts/k8s-reset.sh --wait
+```
 
-Symptoms:
+This script:
 
-- `vault-0` is `Running` but not `Ready`
-- Vault Agent init containers are stuck
-- pod logs mention `Vault is sealed`
-- Argo CD may temporarily show apps as `Progressing`, `Unknown`, or `Degraded`
+- deletes the entire `opensis-dev` namespace
+- removes the OpenSIS MariaDB PVC
+- destroys the current schema, `Data.php` path, and seeded accounts
+- leaves the next `./scripts/k8s-start.sh` run to recreate the namespace and full install path
+
+For unattended reset runs, use:
+
+```bash
+./scripts/k8s-reset.sh --yes --wait
+```
 
 The normal recovery command is:
 
