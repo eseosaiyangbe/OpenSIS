@@ -207,6 +207,62 @@ Prometheus -> exporters -> Alertmanager / Grafana
 - [tests/k8s/README.md](tests/k8s/README.md)
   Backup, restore, and Vault verification helpers.
 
+## OpenSIS Kubernetes Lifecycle
+
+Use these three commands deliberately. They are not interchangeable.
+
+- `./scripts/k8s-start.sh`
+  Safe start or resume for `opensis-dev`. If the namespace already exists, it scales the preserved workloads back up. If the namespace does not exist, it runs the full deploy path.
+- `./scripts/k8s-stop.sh`
+  Safe stop for `opensis-dev`. It scales the deployments and statefulset down to `0` and preserves the namespace, PVC, schema, and accounts.
+- `./scripts/k8s-reset.sh`
+  Destructive reset for `opensis-dev`. It deletes the namespace and PVC so the next `k8s-start.sh` run comes back as a fresh install.
+
+Normal daily lifecycle:
+
+```bash
+cd /Users/raymond/Documents/devops-easy-learning/opensis
+./scripts/k8s-start.sh
+./scripts/k8s-stop.sh
+```
+
+State-preserving stop with wait:
+
+```bash
+cd /Users/raymond/Documents/devops-easy-learning/opensis
+./scripts/k8s-stop.sh --wait
+```
+
+Destructive reset and reinstall path:
+
+```bash
+cd /Users/raymond/Documents/devops-easy-learning/opensis
+./scripts/k8s-reset.sh --wait
+./scripts/k8s-start.sh
+```
+
+After a destructive reset, complete the installer at:
+
+- [https://opensis.eseosadevbox.com/install/index.php](https://opensis.eseosadevbox.com/install/index.php)
+
+Installer values used by the current dev environment:
+
+- MySQL server: `opensis-db`
+- Port: `3306`
+- MySQL username: `root`
+- MySQL password: `opensis-root-123`
+- Database name: `opensis`
+- Admin username: `admin`
+- Admin password: `Raymond@123`
+
+After reinstall, verify:
+
+```bash
+kubectl -n opensis-dev get pods
+kubectl -n opensis-dev exec deploy/opensis-ui -- sh -c 'ls -l /var/www/openSIS/Data.php'
+kubectl -n opensis-dev exec statefulset/opensis-db -- sh -c 'mysql -N -uroot -popensis-root-123 -D opensis -e "SELECT username, profile_id FROM login_authentication WHERE username=\"admin\";"'
+```
+
 ## Professional Notes
 
 This repository is designed as a learning and portfolio project, but the operational model is intentionally serious:

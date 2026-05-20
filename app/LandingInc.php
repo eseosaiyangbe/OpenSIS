@@ -14,6 +14,20 @@ if (isset($_REQUEST['language']) && in_array($_REQUEST['language'], array_keys($
 $_SESSION['language'] = $langCode2;
 include "lang/lang_" . $_SESSION['language'] . ".php";
 
+$is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+    || (isset($_SERVER['SERVER_PORT']) && (string) $_SERVER['SERVER_PORT'] === '443');
+$scheme = $is_https ? 'https' : 'http';
+$host = !empty($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'opensis.eseosadevbox.com';
+$request_uri = !empty($_SERVER['REQUEST_URI']) ? strtok($_SERVER['REQUEST_URI'], '?') : '/';
+$canonical_url = $scheme . '://' . $host . rtrim($request_uri ?: '/', '/');
+if ($canonical_url === $scheme . '://' . $host) {
+    $canonical_url .= '/';
+}
+$share_image_url = $scheme . '://' . $host . '/assets/images/opensis_logo.png';
+$share_title = 'openSIS Student Information System';
+$share_description = 'Student information system with student login, registration intake, and school administration workflow under one managed portal.';
+
 $registration_notice = '';
 if (!empty($_SESSION['public_registration_notice'])) {
     $registration_notice = $_SESSION['public_registration_notice'];
@@ -23,7 +37,21 @@ if (!empty($_SESSION['public_registration_notice'])) {
 $extra_header  = '';
 $extra_header .= '<meta http-equiv="Content-type" content="text/html;charset=UTF-8">';
 $extra_header .= '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">';
-$extra_header .= '<title>openSIS Student Information System</title>';
+$extra_header .= '<title>' . htmlspecialchars($share_title, ENT_QUOTES, 'UTF-8') . '</title>';
+$extra_header .= '<meta name="description" content="' . htmlspecialchars($share_description, ENT_QUOTES, 'UTF-8') . '">';
+$extra_header .= '<meta name="robots" content="index,follow">';
+$extra_header .= '<link rel="canonical" href="' . htmlspecialchars($canonical_url, ENT_QUOTES, 'UTF-8') . '">';
+$extra_header .= '<meta property="og:type" content="website">';
+$extra_header .= '<meta property="og:site_name" content="openSIS">';
+$extra_header .= '<meta property="og:title" content="' . htmlspecialchars($share_title, ENT_QUOTES, 'UTF-8') . '">';
+$extra_header .= '<meta property="og:description" content="' . htmlspecialchars($share_description, ENT_QUOTES, 'UTF-8') . '">';
+$extra_header .= '<meta property="og:url" content="' . htmlspecialchars($canonical_url, ENT_QUOTES, 'UTF-8') . '">';
+$extra_header .= '<meta property="og:image" content="' . htmlspecialchars($share_image_url, ENT_QUOTES, 'UTF-8') . '">';
+$extra_header .= '<meta property="og:image:alt" content="openSIS logo">';
+$extra_header .= '<meta name="twitter:card" content="summary_large_image">';
+$extra_header .= '<meta name="twitter:title" content="' . htmlspecialchars($share_title, ENT_QUOTES, 'UTF-8') . '">';
+$extra_header .= '<meta name="twitter:description" content="' . htmlspecialchars($share_description, ENT_QUOTES, 'UTF-8') . '">';
+$extra_header .= '<meta name="twitter:image" content="' . htmlspecialchars($share_image_url, ENT_QUOTES, 'UTF-8') . '">';
 $extra_header .= '<link rel="shortcut icon" href="favicon.ico">';
 $extra_header .= '<noscript><meta http-equiv="refresh" content="0;url=EnableJavascript.php" /></noscript>';
 $extra_header .= '<link href="assets/css/icons/icomoon/styles.css" rel="stylesheet" type="text/css">';

@@ -146,15 +146,60 @@ For unattended reset runs, use:
 ./scripts/k8s-reset.sh --yes --wait
 ```
 
-The normal recovery command is:
+Important boundary:
+
+- `k8s-stop.sh` is the normal operational stop path
+- `k8s-reset.sh` is destructive and should be treated like a reinstall action, not a pause action
+- if you use `k8s-reset.sh`, you should expect to complete the installer again before login works
+
+### Delete and reinstall the dev slice cleanly
+
+When the dev environment is intentionally being rebuilt from scratch, use this exact order:
+
+1. Destructively reset the namespace and PVC:
 
 ```bash
-./scripts/k8s-start.sh --unseal-vault
+./scripts/k8s-reset.sh --wait
 ```
 
-The script reads the local lab unseal keys from `vault/init/init.txt` and does not print the key values.
+2. Recreate the namespace and workloads:
 
-Do not commit real production unseal keys or root tokens to a public repository.
+```bash
+./scripts/k8s-start.sh
+```
+
+3. Open the installer:
+
+- [https://opensis.eseosadevbox.com/install/index.php](https://opensis.eseosadevbox.com/install/index.php)
+
+4. Use these database values:
+
+- Server: `opensis-db`
+- Port: `3306`
+- Username: `root`
+- Password: `opensis-root-123`
+- Database: `opensis`
+
+5. For the site admin account, use the current dev standard:
+
+- Username: `admin`
+- Password: `Raymond@123`
+
+6. Validate the install after completion:
+
+```bash
+kubectl -n opensis-dev get pods
+kubectl -n opensis-dev exec deploy/opensis-ui -- sh -c 'ls -l /var/www/openSIS/Data.php'
+kubectl -n opensis-dev exec statefulset/opensis-db -- sh -c 'mysql -N -uroot -popensis-root-123 -D opensis -e "SELECT username, profile_id FROM login_authentication WHERE username=\"admin\";"'
+curl -I https://opensis.eseosadevbox.com
+```
+
+Healthy reinstall signals:
+
+- `opensis-ui`, `opensis-db`, `opensis-session-redis`, and exporters are `Running`
+- `/var/www/openSIS/Data.php` exists in the UI pod
+- the `admin` account exists in `login_authentication`
+- the public URL returns `200`
 
 ### Restart only the prod UI
 

@@ -15,12 +15,35 @@ EOF
 
 HOSTNAME_OVERRIDE="opensis.devops.local"
 PORT_FORWARD_PID=""
+EXPORTER_RETRY_ATTEMPTS=12
+EXPORTER_RETRY_DELAY_SECONDS=5
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "ERROR: Required command not found: $1" >&2
     exit 1
   fi
+}
+
+retry_check() {
+  local description="$1"
+  shift
+
+  local attempt=1
+  while (( attempt <= EXPORTER_RETRY_ATTEMPTS )); do
+    if "$@"; then
+      return 0
+    fi
+
+    if (( attempt == EXPORTER_RETRY_ATTEMPTS )); then
+      echo "ERROR: ${description} did not succeed after ${EXPORTER_RETRY_ATTEMPTS} attempts." >&2
+      return 1
+    fi
+
+    echo "[opensis-k8s] ${description} not ready yet (attempt ${attempt}/${EXPORTER_RETRY_ATTEMPTS}); retrying in ${EXPORTER_RETRY_DELAY_SECONDS}s"
+    sleep "${EXPORTER_RETRY_DELAY_SECONDS}"
+    ((attempt++))
+  done
 }
 
 cleanup() {
@@ -121,8 +144,11 @@ kubectl exec -n opensis-dev statefulset/opensis-db -- sh -lc '. /opt/opensis/sec
 kubectl exec -n opensis-dev deploy/opensis-session-redis -- sh -lc 'redis-cli ping | grep -q PONG' >/dev/null
 
 echo "[opensis-k8s] Verifying observability exporters"
-kubectl exec -n opensis-dev deploy/opensis-mysqld-exporter -- sh -lc 'wget -qO- http://127.0.0.1:9104/metrics | grep -q "^mysql_up "' >/dev/null
-kubectl exec -n opensis-dev deploy/opensis-apache-exporter -- sh -lc 'wget -qO- http://127.0.0.1:9117/metrics | grep -q "^apache_up "' >/dev/null
-kubectl exec -n opensis-dev deploy/opensis-vault-synthetic-exporter -- sh -lc 'wget -qO- http://127.0.0.1:9105/metrics | grep -q "^opensis_vault_health_status "' >/dev/null
+retry_check "MySQL exporter metrics check" \
+  kubectl exec -n opensis-dev deploy/opensis-mysqld-exporter -- sh -lc 'wget -qO- http://127.0.0.1:9104/metrics | grep -q "^mysql_up "' >/dev/null
+retry_check "Apache exporter metrics check" \
+  kubectl exec -n opensis-dev deploy/opensis-apache-exporter -- sh -lc 'wget -qO- http://127.0.0.1:9117/metrics | grep -q "^apache_up "' >/dev/null
+retry_check "Vault synthetic exporter metrics check" \
+  kubectl exec -n opensis-dev deploy/opensis-vault-synthetic-exporter -- sh -lc 'wget -qO- http://127.0.0.1:9105/metrics | grep -q "^opensis_vault_health_status "' >/dev/null
 
 echo "[opensis-k8s] Verification passed"
