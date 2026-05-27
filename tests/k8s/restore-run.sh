@@ -1,6 +1,32 @@
 #!/usr/bin/env sh
 set -eu
 
+usage() {
+  cat <<'EOF'
+Usage:
+  ./tests/k8s/restore-run.sh
+  ./tests/k8s/restore-run.sh <opensis-backup.sql.gz>
+  ./tests/k8s/restore-run.sh --help
+
+Behavior:
+  With no arguments, restore the newest valid OpenSIS backup archive.
+  With one argument, restore the named backup archive.
+EOF
+}
+
+case "${1:-}" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
+
+if [ "$#" -gt 1 ]; then
+  echo "ERROR: expected zero arguments or one backup filename" >&2
+  usage >&2
+  exit 1
+fi
+
 NAMESPACE="${NAMESPACE:-opensis-dev}"
 POD_NAME="${POD_NAME:-opensis-db-restore}"
 PVC_NAME="${PVC_NAME:-opensis-db-backup-storage}"

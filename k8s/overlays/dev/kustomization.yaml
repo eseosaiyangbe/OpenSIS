@@ -9,6 +9,7 @@ resources:
   - vault-secret-store.yaml
   - vault-app-external-secret.yaml
   - vault-db-external-secret.yaml
+  - opensis-db-backup.yaml
   - ../../base
 
 images:
