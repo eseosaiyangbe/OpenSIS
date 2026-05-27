@@ -103,14 +103,15 @@ Vault -> Vault Agent -> /run/secrets/*.env
 ### Kubernetes secret flow
 
 ```text
-Vault KV -> Vault Agent Injector -> init container renders secret file
-Rendered secret file -> pod entrypoint -> runtime config
+Vault KV -> External Secrets -> Kubernetes Secret
+Kubernetes Secret -> mounted secret file -> pod entrypoint -> runtime config
 ```
 
 Important ideas:
 
 - Vault is the source of truth
-- workloads read rendered files at runtime
+- External Secrets materializes environment-specific Kubernetes Secrets from Vault paths
+- workloads read mounted secret files at runtime
 - the repo keeps the secret-delivery pattern consistent across environments
 
 ## 5. Database Flow
@@ -125,6 +126,13 @@ The database layer also supports:
 - manual backup verification
 - restore testing
 - exporter-based observability
+
+The current OpenSIS `dev` data-protection path is now explicitly platformized:
+
+- `CronJob/opensis-db-backup` runs daily at `02:00 UTC`
+- backup retention keeps the newest `7` archives
+- backup and restore helpers operate against the same `opensis-db-secrets` contract used by the live database workload
+- restore drills are performed with temporary GitOps automation suspension and then reconciled back under Argo CD control
 
 One important lesson already validated in this repo:
 
@@ -256,6 +264,7 @@ In this repo, those states have sometimes represented:
 - expected convergence after a sync
 - temporary rollout behavior during trust changes
 - real platform issues such as failed backup Jobs
+- temporary `OutOfSync` during restore-drill suspension or manual validation Jobs until the runtime cleanup and GitOps refresh are completed
 
 So Argo status is important, but it must always be read with runtime context.
 

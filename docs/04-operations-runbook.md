@@ -235,6 +235,16 @@ kubectl annotate application opensis-dev -n argocd argocd.argoproj.io/refresh=ha
 
 Backups are part of the platform, not an optional afterthought.
 
+The current `dev` backup contract is:
+
+- `CronJob/opensis-db-backup`
+  - schedule: `0 2 * * *`
+  - timezone: `Etc/UTC`
+- retention:
+  - newest `7` backup archives
+- artifact format:
+  - `opensis-YYYYMMDDTHHMMSSZ.sql.gz`
+
 Run a one-off backup:
 
 ```bash
@@ -250,12 +260,47 @@ Inspect stored backups:
 Delete old backup files:
 
 ```bash
-./tests/k8s/backup-delete.sh
+./tests/k8s/backup-delete.sh --keep-latest
+```
+
+Delete all backup files:
+
+```bash
+./tests/k8s/backup-delete.sh --all
+```
+
+### Controlled restore drill
+
+Suspend GitOps automation before a live restore drill:
+
+```bash
+kubectl patch application internal-developer-platform-dev-root -n argocd --type json -p='[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
+kubectl patch application opensis-dev -n argocd --type json -p='[{"op":"remove","path":"/spec/syncPolicy/automated"}]'
+```
+
+Reset, restore, and verify:
+
+```bash
+./tests/k8s/restore-reset.sh
+./tests/k8s/restore-run.sh opensis-20260527T163506Z.sql.gz
+./tests/k8s/restore-verify.sh
+```
+
+Re-enable GitOps automation afterward:
+
+```bash
+kubectl patch application internal-developer-platform-dev-root -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
+kubectl patch application opensis-dev -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true},"syncOptions":["CreateNamespace=true"]}}}'
+kubectl annotate application opensis-dev -n argocd argocd.argoproj.io/refresh=hard --overwrite
+kubectl get application opensis-dev -n argocd -o wide
 ```
 
 Important lesson from this repo’s real operation:
 
 - a failed backup Job can make Argo show `Degraded` even while the site still returns `200`
+- the OpenSIS MariaDB policy must explicitly allow ingress from `opensis-db-backup`, or the backup pod will wait forever at the database connectivity step
+- the MariaDB backup and restore helper pods must disable service account token mounts, or container startup can fail on this runtime with a read-only filesystem error under `/var/run/secrets/kubernetes.io/serviceaccount`
+- backup and restore helper scripts must match the live DB secret path inside the database pod, which is `/opt/opensis/secrets/db.env` for reset and verification inside `opensis-db-0`
 
 So always check recent Jobs when Argo health looks worse than the user-facing system.
 

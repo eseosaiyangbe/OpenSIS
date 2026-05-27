@@ -5,7 +5,7 @@ NAMESPACE="${NAMESPACE:-opensis-dev}"
 DB_POD="${DB_POD:-opensis-db-0}"
 
 kubectl exec -n "$NAMESPACE" "$DB_POD" -- sh -eu -c '
-  . /run/secrets/db.env
+  . /opt/opensis/secrets/db.env
   : "${MYSQL_ROOT_PASSWORD:?Missing MYSQL_ROOT_PASSWORD}"
 
   pick_db() {
