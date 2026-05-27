@@ -37,16 +37,13 @@ BACKUP_FILE="${BACKUP_FILE:-${1:-}}"
 
 case "$NAMESPACE" in
   opensis-dev)
-    VAULT_ROLE="${VAULT_ROLE:-opensis-db-backup-dev}"
-    VAULT_SECRET_PATH="${VAULT_SECRET_PATH:-kv/data/dev/opensis-db}"
+    DB_SECRET_NAME="${DB_SECRET_NAME:-opensis-db-secrets}"
     ;;
   opensis)
-    VAULT_ROLE="${VAULT_ROLE:-opensis-db-backup}"
-    VAULT_SECRET_PATH="${VAULT_SECRET_PATH:-kv/data/production/opensis-db}"
+    DB_SECRET_NAME="${DB_SECRET_NAME:-opensis-db-secrets}"
     ;;
   *)
-    VAULT_ROLE="${VAULT_ROLE:-opensis-db-backup-dev}"
-    VAULT_SECRET_PATH="${VAULT_SECRET_PATH:-kv/data/dev/opensis-db}"
+    DB_SECRET_NAME="${DB_SECRET_NAME:-opensis-db-secrets}"
     ;;
 esac
 
@@ -112,7 +109,7 @@ gzip -dc "$backup_file" | mysql \
   --password="$MYSQL_ROOT_PASSWORD"
 echo "Restore completed from $backup_file"'
 
-export NAMESPACE POD_NAME PVC_NAME IMAGE VAULT_ROLE VAULT_SECRET_PATH BACKUP_FILE DUMP_HOST DUMP_PORT RESTORE_SCRIPT
+export NAMESPACE POD_NAME PVC_NAME IMAGE DB_SECRET_NAME BACKUP_FILE DUMP_HOST DUMP_PORT RESTORE_SCRIPT
 
 python3 <<'PY' | kubectl apply -f - >/dev/null
 import json
@@ -122,8 +119,7 @@ namespace = os.environ['NAMESPACE']
 pod_name = os.environ['POD_NAME']
 pvc_name = os.environ['PVC_NAME']
 image = os.environ['IMAGE']
-vault_role = os.environ['VAULT_ROLE']
-vault_secret_path = os.environ['VAULT_SECRET_PATH']
+db_secret_name = os.environ['DB_SECRET_NAME']
 backup_file = os.environ['BACKUP_FILE']
 dump_host = os.environ['DUMP_HOST']
 dump_port = os.environ['DUMP_PORT']
@@ -136,22 +132,9 @@ metadata:
   namespace: {namespace}
   labels:
     app: opensis-db-backup
-  annotations:
-    vault.hashicorp.com/agent-inject: "true"
-    vault.hashicorp.com/agent-pre-populate-only: "true"
-    vault.hashicorp.com/auth-path: "auth/kubernetes"
-    vault.hashicorp.com/role: "{vault_role}"
-    vault.hashicorp.com/secret-volume-path: "/run/secrets"
-    vault.hashicorp.com/agent-inject-secret-db.env: "{vault_secret_path}"
-    vault.hashicorp.com/agent-inject-template-db.env: |
-      {{{{- with secret "{vault_secret_path}" -}}}}
-      MYSQL_ROOT_PASSWORD={{{{ .Data.data.MYSQL_ROOT_PASSWORD }}}}
-      MYSQL_DATABASE={{{{ .Data.data.MYSQL_DATABASE }}}}
-      MYSQL_USER={{{{ .Data.data.MYSQL_USER }}}}
-      MYSQL_PASSWORD={{{{ .Data.data.MYSQL_PASSWORD }}}}
-      {{{{- end }}}}
 spec:
   serviceAccountName: opensis-db-backup
+  automountServiceAccountToken: false
   restartPolicy: Never
   containers:
     - name: restore
@@ -171,10 +154,19 @@ spec:
       volumeMounts:
         - name: backup-storage
           mountPath: /backup
+        - name: db-secrets
+          mountPath: /run/secrets
+          readOnly: true
   volumes:
     - name: backup-storage
       persistentVolumeClaim:
         claimName: {pvc_name}
+    - name: db-secrets
+      secret:
+        secretName: {db_secret_name}
+        items:
+          - key: db.env
+            path: db.env
 ''')
 PY
 

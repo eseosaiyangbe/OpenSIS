@@ -77,6 +77,9 @@ spec:
         - podSelector:
             matchLabels:
               app: opensis-mysqld-exporter
+        - podSelector:
+            matchLabels:
+              app: opensis-db-backup
       ports:
         - protocol: TCP
           port: 3306
