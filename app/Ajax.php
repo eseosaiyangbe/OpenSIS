@@ -203,8 +203,6 @@ echo "<div id=\"divErr\"></div>";
 if (!isset($_REQUEST['_openSIS_PDF'])) {
     Warehouse('header');
 
-    if (strpos(clean_param($_REQUEST['modname'], PARAM_NOTAGS), 'miscellaneous/') === false)
-        echo '<script language="JavaScript">if(window == top  && (!window.opener || window.opener.location.href.substring(0,(window.opener.location.href.indexOf("&")!=-1?window.opener.location.href.indexOf("&"):window.opener.location.href.replace("#","").length))!=window.location.href.substring(0,(window.location.href.indexOf("&")!=-1?window.location.href.indexOf("&"):window.location.href.replace("#","").length)))) window.location.href = "index.php";</script>';
     // echo "<BODY marginwidth=0 leftmargin=0 border=0 onload='doOnload();' background=assets/bg.gif>";
     // echo '<DIV id="Migoicons" style="visibility:hidden;position:absolute;z-index:1000;top:-100"></DIV>';
 }

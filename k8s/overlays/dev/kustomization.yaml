@@ -39,10 +39,10 @@ patches:
         value: opensis-dev
       - op: replace
         path: /data/PHP_SESSION_COOKIE_SECURE
-        value: "0"
+        value: "1"
       - op: replace
         path: /data/PHP_SESSION_COOKIE_SAMESITE
-        value: Lax
+        value: Strict
   - target:
       kind: Deployment
       name: opensis-ui
