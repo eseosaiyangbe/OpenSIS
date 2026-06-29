@@ -21,6 +21,7 @@ on:
       - 'Dockerfile'
       - '*.yml'
       - '*.yaml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -35,10 +36,12 @@ jobs:
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.0
 
       - name: Install validation tools
         run: |
-          set -eux
+          set -euxo pipefail
           sudo apt-get update
           sudo apt-get install -y shellcheck python3-pip
           python3 -m pip install --user yamllint
@@ -49,22 +52,34 @@ jobs:
 
       - name: Lint GitHub Actions workflows
         run: |
-          set -eu
+          set -euo pipefail
           actionlint
 
       - name: Lint shell scripts
         run: |
-          set -eu
+          set -euo pipefail
           mapfile -t scripts < <(find scripts -type f -name '*.sh' | sort)
           if [ "${#scripts[@]}" -gt 0 ]; then
             shellcheck "${scripts[@]}"
+            for script in "${scripts[@]}"; do
+              bash -n "${script}"
+            done
+          fi
+
+          mapfile -t aux_scripts < <(find tests/k8s observability -type f -name '*.sh' | sort)
+          if [ "${#aux_scripts[@]}" -gt 0 ]; then
+            shellcheck "${aux_scripts[@]}"
+            for script in "${aux_scripts[@]}"; do
+              bash -n "${script}"
+            done
           fi
 
       - name: Lint YAML files
         run: |
-          set -eu
+          set -euo pipefail
           mapfile -t yaml_files < <(
             {
+              find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \)
               find k8s -type f \( -name '*.yml' -o -name '*.yaml' \)
               find observability -type f \( -name '*.yml' -o -name '*.yaml' \)
               find cloudflared -type f \( -name '*.yml' -o -name '*.yaml' \)
@@ -77,12 +92,20 @@ jobs:
 
       - name: Render Kubernetes base and overlays
         run: |
-          set -eu
+          set -euo pipefail
           kubectl kustomize k8s/base >/tmp/kustomize-base.yaml
           kubectl kustomize k8s/overlays/dev >/tmp/kustomize-dev.yaml
           kubectl kustomize k8s/overlays/prod >/tmp/kustomize-prod.yaml
-          kubectl kustomize k8s/platform/cloudflare >/tmp/kustomize-cloudflare.yaml
-          kubectl kustomize k8s/gitops/argocd >/tmp/kustomize-argocd.yaml
+          kubectl kustomize k8s-legacy-platform/platform/cloudflare >/tmp/kustomize-cloudflare.yaml
+          kubectl kustomize k8s-legacy-platform/gitops/argocd >/tmp/kustomize-argocd.yaml
+
+      - name: Client dry-run Kubernetes manifests
+        run: |
+          set -euo pipefail
+          kubectl apply --dry-run=client -k k8s/overlays/dev >/tmp/opensis-dev-dryrun.txt
+          kubectl apply --dry-run=client -k k8s/overlays/prod >/tmp/opensis-prod-dryrun.txt
+          kubectl apply --dry-run=client -f k8s/argocd/opensis-dev-application.yaml >/tmp/opensis-argocd-dev-dryrun.txt
+          kubectl apply --dry-run=client -f k8s/argocd/opensis-prod-application.yaml >/tmp/opensis-argocd-prod-dryrun.txt
 
       - name: Summarize validation coverage
         run: |
@@ -90,7 +113,8 @@ jobs:
           ## Validation Coverage
 
           - GitHub Actions workflow linting via `actionlint`
-          - Shell script linting via `shellcheck`
+          - Shell script linting via `shellcheck` and `bash -n`
           - YAML linting via `yamllint`
-          - Kustomize render checks for base, dev, prod, cloudflare, and argocd
+          - Kustomize render checks for base, dev, prod, legacy cloudflare, and legacy argocd
+          - `kubectl apply --dry-run=client` checks for dev, prod, and Argo CD application manifests
           EOF
