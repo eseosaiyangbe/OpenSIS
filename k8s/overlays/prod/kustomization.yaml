@@ -5,6 +5,7 @@ namespace: opensis-prod
 
 resources:
   - namespace.yaml
+  - prod-resource-quota.yaml
   - vault-serviceaccount.yaml
   - vault-secret-store.yaml
   - vault-app-external-secret.yaml
