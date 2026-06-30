@@ -26,8 +26,9 @@ labels:
       secret-source: vault
     includeSelectors: false
 
+patchesStrategicMerge:
+  - prod-placement-patch.yaml
 patches:
-  - path: prod-placement-patch.yaml
   - target:
       kind: Deployment
       name: opensis-ui
