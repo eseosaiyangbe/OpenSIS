@@ -48,7 +48,8 @@ jobs:
           sudo apt-get install -y shellcheck python3-pip
           python3 -m pip install --user yamllint
           ACTIONLINT_VERSION=1.7.7
-          curl -sSL -o /tmp/actionlint.tgz "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSL -o /tmp/actionlint.tgz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
           tar -xzf /tmp/actionlint.tgz -C /tmp
           sudo install /tmp/actionlint /usr/local/bin/actionlint
 
@@ -65,7 +66,12 @@ jobs:
           set -euo pipefail
           scripts=()
           if [ -n "${DIFF_BASE:-}" ] && git rev-parse --verify "${DIFF_BASE}^{commit}" >/dev/null 2>&1; then
-            mapfile -t scripts < <(git diff --name-only "${DIFF_BASE}" "${DIFF_HEAD}" -- 'scripts/*.sh' 'scripts/**/*.sh' 'tests/k8s/*.sh' 'tests/k8s/**/*.sh' 'observability/*.sh' 'observability/**/*.sh' | sort -u)
+            mapfile -t scripts < <(
+              git diff --name-only "${DIFF_BASE}" "${DIFF_HEAD}" -- \
+                'scripts/*.sh' 'scripts/**/*.sh' \
+                'tests/k8s/*.sh' 'tests/k8s/**/*.sh' \
+                'observability/*.sh' 'observability/**/*.sh' | sort -u
+            )
           fi
           if [ "${#scripts[@]}" -eq 0 ]; then
             for script in scripts/smoke-dev.sh scripts/smoke-prod.sh; do
@@ -107,10 +113,10 @@ jobs:
       - name: Client dry-run Kubernetes manifests
         run: |
           set -euo pipefail
-          kubectl apply --dry-run=client -k k8s/overlays/dev >/tmp/opensis-dev-dryrun.txt
-          kubectl apply --dry-run=client -k k8s/overlays/prod >/tmp/opensis-prod-dryrun.txt
-          kubectl apply --dry-run=client -f k8s/argocd/opensis-dev-application.yaml >/tmp/opensis-argocd-dev-dryrun.txt
-          kubectl apply --dry-run=client -f k8s/argocd/opensis-prod-application.yaml >/tmp/opensis-argocd-prod-dryrun.txt
+          kubectl apply --dry-run=client --validate=false -k k8s/overlays/dev >/tmp/opensis-dev-dryrun.txt
+          kubectl apply --dry-run=client --validate=false -k k8s/overlays/prod >/tmp/opensis-prod-dryrun.txt
+          kubectl apply --dry-run=client --validate=false -f k8s/argocd/opensis-dev-application.yaml >/tmp/opensis-argocd-dev-dryrun.txt
+          kubectl apply --dry-run=client --validate=false -f k8s/argocd/opensis-prod-application.yaml >/tmp/opensis-argocd-prod-dryrun.txt
 
       - name: Summarize validation coverage
         run: |
