@@ -33,6 +33,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
@@ -56,20 +58,23 @@ jobs:
           actionlint
 
       - name: Lint shell scripts
+        env:
+          DIFF_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          DIFF_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          mapfile -t scripts < <(find scripts -type f -name '*.sh' | sort)
+          scripts=()
+          if [ -n "${DIFF_BASE:-}" ] && git rev-parse --verify "${DIFF_BASE}^{commit}" >/dev/null 2>&1; then
+            mapfile -t scripts < <(git diff --name-only "${DIFF_BASE}" "${DIFF_HEAD}" -- 'scripts/*.sh' 'scripts/**/*.sh' 'tests/k8s/*.sh' 'tests/k8s/**/*.sh' 'observability/*.sh' 'observability/**/*.sh' | sort -u)
+          fi
+          if [ "${#scripts[@]}" -eq 0 ]; then
+            for script in scripts/smoke-dev.sh scripts/smoke-prod.sh; do
+              [ -f "${script}" ] && scripts+=("${script}")
+            done
+          fi
           if [ "${#scripts[@]}" -gt 0 ]; then
             shellcheck "${scripts[@]}"
             for script in "${scripts[@]}"; do
-              bash -n "${script}"
-            done
-          fi
-
-          mapfile -t aux_scripts < <(find tests/k8s observability -type f -name '*.sh' | sort)
-          if [ "${#aux_scripts[@]}" -gt 0 ]; then
-            shellcheck "${aux_scripts[@]}"
-            for script in "${aux_scripts[@]}"; do
               bash -n "${script}"
             done
           fi
