@@ -42,5 +42,5 @@ helm upgrade --install traefik traefik/traefik   -n traefik   -f k8s/bootstrap/t
 1. install Traefik and confirm the `traefik` ingress class exists
 2. update the application ingress manifests to use `traefik`
 3. verify in-cluster routing before introducing Cloudflare Tunnel traffic
-4. create the Cloudflare tunnel public hostname `opensis.raysosglobal.com`
+4. create the Cloudflare tunnel public hostname `opensis.eseosadevbox.com`
 5. point the tunnel to the Traefik service

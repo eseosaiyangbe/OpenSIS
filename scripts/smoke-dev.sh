@@ -4,7 +4,7 @@ set -euo pipefail
 APP_NS="opensis-dev"
 ARGO_NS="argocd"
 APP_NAME="opensis-dev"
-URL="https://opensis.dev.local"
+URL="${URL:-https://opensis.eseosadevbox.com}"
 UA="Mozilla/5.0"
 
 require() {

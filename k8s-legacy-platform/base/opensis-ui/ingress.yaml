@@ -8,10 +8,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - opensis.raysosglobal.com
+        - opensis.eseosadevbox.com
       secretName: opensis-ui-tls
   rules:
-    - host: opensis.raysosglobal.com
+    - host: opensis.eseosadevbox.com
       http:
         paths:
           - path: /

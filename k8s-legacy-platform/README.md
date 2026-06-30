@@ -8,7 +8,7 @@ It is not the active owned Kubernetes path for this project anymore.
 
 The new active path is:
 
-- [../k8s](/Users/raymond/Documents/DevOps-Easy-Learning/OpenSIS/k8s)
+- [../k8s](../k8s)
 
 See also: [Day-1 Production Architecture](DAY1_PRODUCTION_ARCHITECTURE.md)
 See also: [From-Scratch Local Bootstrap](FROM_SCRATCH_LOCAL_BOOTSTRAP.md)

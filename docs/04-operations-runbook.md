@@ -52,7 +52,7 @@ kubectl get pods -n opensis
 ### Quick public-prod check
 
 ```bash
-curl -I https://opensis.raysosglobal.com
+curl -I https://opensis.eseosadevbox.com
 ```
 
 Healthy steady state usually looks like:
@@ -72,7 +72,7 @@ kubectl get pods -n opensis
 kubectl get pods -n opensis-dev
 kubectl get jobs -n opensis --sort-by=.metadata.creationTimestamp
 kubectl get jobs -n opensis-dev --sort-by=.metadata.creationTimestamp
-curl -I https://opensis.raysosglobal.com
+curl -I https://opensis.eseosadevbox.com
 ```
 
 If your terminal cannot see the cluster, fix kubeconfig first:
@@ -206,7 +206,7 @@ Healthy reinstall signals:
 ```bash
 kubectl rollout restart deployment/opensis-ui -n opensis
 kubectl rollout status deployment/opensis-ui -n opensis
-curl -I https://opensis.raysosglobal.com
+curl -I https://opensis.eseosadevbox.com
 ```
 
 ### Restart only the dev UI
@@ -406,7 +406,7 @@ Check:
 ```bash
 kubectl get jobs -n opensis --sort-by=.metadata.creationTimestamp
 kubectl get pods -n opensis
-curl -I https://opensis.raysosglobal.com
+curl -I https://opensis.eseosadevbox.com
 ```
 
 If you see a recent failed backup Job, inspect it:
@@ -425,7 +425,7 @@ This repo has already shown:
 For a public HTTP probe failure, check:
 
 ```bash
-curl -I https://opensis.raysosglobal.com
+curl -I https://opensis.eseosadevbox.com
 kubectl get pods -n opensis
 kubectl get pods -n opensis -l app=blackbox-exporter
 ```

@@ -1,4 +1,4 @@
-name: Build And Push openSIS UI
+name: Publish Docker Hub Image
 
 on:
   push:
@@ -147,8 +147,9 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ## openSIS UI image policy
 
-          - main branch publishes: `main`, `git-<sha>`, and mutable `dev`
-          - version tags (`v*`) publish: the version tag itself, `git-<sha>`, mutable `prod`, and `latest`
+          - branch pushes publish the branch tag plus immutable `git-<sha>` tags
+          - the `main` branch also publishes the mutable `dev` alias
+          - version tags (`v*`) publish the version tag itself, immutable `git-<sha>`, and mutable `prod` and `latest` aliases
           - production manifests should stay pinned to immutable tags even though CI can publish mutable aliases
           - Trivy currently runs in report mode while the vulnerability baseline is being established
           - build artifacts now retain a Trivy report and SPDX SBOM for 30 days

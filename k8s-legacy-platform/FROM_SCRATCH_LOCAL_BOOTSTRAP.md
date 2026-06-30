@@ -481,7 +481,7 @@ Once the app pod is running, verify ingress:
 
 ```bash
 kubectl get ingress -n opensis
-curl -I -H 'Host: opensis.raysosglobal.com' http://192.168.2.132
+curl -I -H 'Host: opensis.eseosadevbox.com' http://192.168.2.132
 ```
 
 In our run, the ingress initially returned the default `404 Not Found` from `ingress-nginx` because the ingress resource had no class and the controller was not claiming it correctly.
@@ -531,7 +531,7 @@ These are the issues we actually hit during this lab and how we fixed them:
 - Cause: ingress class binding was missing
 - Fix: set `ingressClassName: nginx` in the ingress manifest
 
-4. `curl http://opensis.raysosglobal.com` returned `530`
+4. `curl http://opensis.eseosadevbox.com` returned `530`
 - Cause: request was going through Cloudflare, not directly to the local ingress, and TLS/origin setup was incomplete
 - Fix: test locally against the ingress IP with a host header first, then add cert-manager before treating the public hostname as complete
 
@@ -876,7 +876,7 @@ This keeps the local learning path simple while giving the project a real promot
 
 The workflow now lives at:
 
-- [.github/workflows/dockerhub-opensis-ui.yml](../.github/workflows/dockerhub-opensis-ui.yml)
+- [.github/workflows/publish-dockerhub-image.yml](../.github/workflows/publish-dockerhub-image.yml)
 
 The supporting notes live at:
 
@@ -1566,7 +1566,7 @@ The most important production-specific changes were:
 
 1. Prometheus storage was increased to `20Gi`, retention was set to `15d`, and CPU/memory requests and limits were raised to more realistic production values.
 2. Grafana storage was increased to `5Gi`, and Grafana CPU/memory requests and limits were raised above the dev defaults.
-3. The production ingress host and the production blackbox HTTP probe target were both changed from the placeholder `opensis.example.com` to the real hostname `opensis.raysosglobal.com`.
+3. The production ingress host and the production blackbox HTTP probe target were both changed from the placeholder `opensis.example.com` to the real hostname `opensis.eseosadevbox.com`.
 4. Grafana admin credentials were removed from inline manifest defaults and moved to Vault so they follow the same secret-delivery model as the rest of the stack.
 
 The Grafana Vault move added these repo pieces:
@@ -1610,8 +1610,8 @@ kubectl kustomize k8s/overlays/prod
 The expected production shape is now:
 
 - Grafana no longer relies on inline `admin/admin` credentials.
-- the production ingress host is `opensis.raysosglobal.com`.
-- the production blackbox HTTP probe checks `https://opensis.raysosglobal.com`.
+- the production ingress host is `opensis.eseosadevbox.com`.
+- the production blackbox HTTP probe checks `https://opensis.eseosadevbox.com`.
 - Prometheus and Grafana have production-sized persistence and resources rather than inheriting only the base defaults.
 
 ## Phase 22A: Prepare Cloudflare And Traefik Edge Publication
@@ -1647,7 +1647,7 @@ kubectl kustomize k8s/platform/cloudflare
 
 The intended edge design is now explicit:
 
-- Cloudflare provides the public edge for `opensis.raysosglobal.com`
+- Cloudflare provides the public edge for `opensis.eseosadevbox.com`
 - `cloudflared` lives in its own `cloudflare` namespace
 - Traefik remains the intended in-cluster ingress controller
 - the tunnel should target Traefik only after Traefik is installed and the app ingress has been deliberately cut over
@@ -1825,7 +1825,7 @@ Render validation commands:
 ```bash
 kubectl kustomize k8s/platform/cloudflare
 kubectl kustomize k8s/gitops/argocd
-kubectl kustomize k8s/overlays/prod | grep -nE 'kind: Ingress|ingressClassName: traefik|opensis.raysosglobal.com'
+kubectl kustomize k8s/overlays/prod | grep -nE 'kind: Ingress|ingressClassName: traefik|opensis.eseosadevbox.com'
 ```
 
 Expected result:
@@ -1834,13 +1834,13 @@ Expected result:
 - the Argo CD project and applications render cleanly, including `opensis-cloudflare`
 - the production ingress renders with:
   - `ingressClassName: traefik`
-  - host `opensis.raysosglobal.com`
+  - host `opensis.eseosadevbox.com`
 
 Cloudflare dashboard setup for the live cutover:
 
 1. create a named tunnel in Cloudflare
 2. add the public hostname:
-   - `opensis.raysosglobal.com`
+   - `opensis.eseosadevbox.com`
 3. point that hostname at the in-cluster origin adapter:
    - `http://opensis-origin-adapter.cloudflare.svc.cluster.local:8080`
 4. copy the generated tunnel token
@@ -1943,13 +1943,13 @@ kubectl get deploy,pods,svc,ingress -n opensis -o wide
 kubectl get deploy,pods -n cloudflare -o wide
 kubectl exec -n opensis deploy/opensis-ui -- sh -lc 'curl -s -o /dev/null -w "%{http_code}\n" -A "Mozilla/5.0" http://127.0.0.1/'
 kubectl exec -n cloudflare deploy/opensis-origin-adapter -- sh -lc 'wget -qSO- http://127.0.0.1:8080/ >/dev/null'
-curl -k -I https://opensis.raysosglobal.com
+curl -k -I https://opensis.eseosadevbox.com
 ```
 
 Final outcome of the reconciliation:
 
 - `opensis-prod` moved from `OutOfSync` to `Synced`
-- the public URL `https://opensis.raysosglobal.com` returned `HTTP/2 200` again
+- the public URL `https://opensis.eseosadevbox.com` returned `HTTP/2 200` again
 - the current immutable prod image was later promoted to `docker.io/eseosaiyangbe/opensis-ui:git-c136761`
 - `dev` and `prod` no longer compete for the same kube-state-metrics cluster-scoped RBAC objects
 
@@ -1974,7 +1974,7 @@ Representative commands and checks:
 ```bash
 kubectl get deployment opensis-ui -n opensis -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
 kubectl get pods -n opensis -l app=opensis-ui -o wide
-curl -ks https://opensis.raysosglobal.com | rg 'Demo Credentials|demo@123'
+curl -ks https://opensis.eseosadevbox.com | rg 'Demo Credentials|demo@123'
 
 kubectl create job -n opensis --from=cronjob/opensis-db-backup opensis-db-backup-manual-$(date +%s)
 kubectl get jobs,pods,pvc -n opensis
@@ -2257,7 +2257,7 @@ Current environment intent is now:
 - `dev` is the stable local-learning environment at `https://opensis.dev.local`
 - `dev` stays on `nginx` ingress for predictable browser access
 - `dev` tracks the CI-backed image stream `docker.io/eseosaiyangbe/opensis-ui:main`
-- `prod` is the public-facing environment at `https://opensis.raysosglobal.com`
+- `prod` is the public-facing environment at `https://opensis.eseosadevbox.com`
 - `prod` is pinned to the immutable image `docker.io/eseosaiyangbe/opensis-ui:git-244d863`
 - `prod` uses Traefik plus Cloudflare Tunnel, with the in-cluster origin adapter normalizing public requests before they reach openSIS
 - the origin adapter now forwards `X-Forwarded-Proto https` so the app sees the correct public scheme
@@ -2434,7 +2434,7 @@ Current production request path:
 What the adapter is doing today:
 
 - forces a browser-like `User-Agent`
-- pins `Host` to `opensis.raysosglobal.com`
+- pins `Host` to `opensis.eseosadevbox.com`
 - forwards `X-Forwarded-Proto https`
 - normalizes origin requests before they reach openSIS
 

@@ -173,7 +173,7 @@ flowchart TD
     C --> C3[yamllint]
     C --> C4[kubectl kustomize renders]
 
-    B --> D[Build And Push openSIS UI]
+    B --> D[Publish Docker Hub Image]
     D --> D1[Docker Build]
     D --> D2[Immutable Tag git-sha]
     D --> D3[Trivy Scan]
@@ -199,7 +199,7 @@ flowchart TD
 
     N --> O[Traefik]
     O --> P[Cloudflare Tunnel and Origin Adapter]
-    P --> Q[Public URL opensis.raysosglobal.com]
+    P --> Q[Public URL opensis.eseosadevbox.com]
 
     H --> R[Operator Smoke Dev]
     N --> S[Operator Smoke Prod]
@@ -228,7 +228,7 @@ flowchart LR
     E1[Argo CD] --> E
     F1[smoke-dev.sh]
     F2[smoke-prod.sh]
-    F3[smoke-prod-public.yml]
+    F3[smoke-dev-public.yml]
     F1 --> F
     F2 --> F
     F3 --> F
@@ -238,10 +238,10 @@ flowchart LR
 Diagram notes:
 
 - `validate.yml` is the repo quality gate before changes move further.
-- `dockerhub-opensis-ui.yml` produces the deployable and trusted image artifacts.
+- `publish-dockerhub-image.yml` produces the deployable and trusted image artifacts.
 - `promote-prod.yml` changes Git, not the cluster.
 - Argo CD remains the deployment authority.
-- `smoke-dev.sh`, `smoke-prod.sh`, and `smoke-prod-public.yml` provide the verification model for this phase.
+- `smoke-dev.sh`, `smoke-prod.sh`, and `smoke-dev-public.yml` provide the verification model for this phase.
 - rollback follows the same GitOps path as promotion.
 
 ## How A Push Moves Through The Stack
@@ -261,7 +261,7 @@ This is the first safety gate and prevents obviously broken workflow, shell, or 
 
 ### 2. Image-Affecting Changes Build A New Artifact
 
-If the push changes image-affecting paths such as [Dockerfile](../Dockerfile), [app](../app), [docker](../docker), or [docker-entrypoint-vault.sh](../scripts/docker-entrypoint-vault.sh), [dockerhub-opensis-ui.yml](../.github/workflows/dockerhub-opensis-ui.yml) builds the UI image and publishes it to Docker Hub.
+If the push changes image-affecting paths such as [Dockerfile](../Dockerfile), [app](../app), [docker](../docker), or [docker-entrypoint-vault.sh](../scripts/docker-entrypoint-vault.sh), [publish-dockerhub-image.yml](../.github/workflows/publish-dockerhub-image.yml) builds the UI image and publishes it to Docker Hub.
 
 For `main`, the workflow publishes:
 
@@ -323,7 +323,7 @@ After deployment, the stack is verified through two complementary paths:
   - [smoke-dev.sh](../scripts/smoke-dev.sh)
   - [smoke-prod.sh](../scripts/smoke-prod.sh)
 - GitHub-hosted public edge checks:
-  - [smoke-prod-public.yml](../.github/workflows/smoke-prod-public.yml)
+  - [smoke-dev-public.yml](../.github/workflows/smoke-dev-public.yml)
 
 This split reflects the real network boundaries of the project: GitHub-hosted runners can check the public production edge, while local operator scripts verify cluster-internal details that hosted runners cannot reach.
 
@@ -497,7 +497,7 @@ Recommended `dev` smoke checks:
 Recommended `prod` smoke checks:
 
 - Argo CD app status for `opensis-prod` and `opensis-cloudflare`
-- `curl -k -I https://opensis.raysosglobal.com`
+- `curl -k -I https://opensis.eseosadevbox.com`
 - verify `/install/` redirects away from installer
 - verify `opensis-ui` replica count and Redis session configuration
 
@@ -721,7 +721,7 @@ Current status:
 - complete for the current private local-cluster model
 - repeatable operator-run smoke scripts exist at [smoke-dev.sh](../scripts/smoke-dev.sh) and [smoke-prod.sh](../scripts/smoke-prod.sh)
 - the current smoke evidence shows both `dev` and `prod` passing their operator-run checks cleanly
-- [smoke-prod-public.yml](../.github/workflows/smoke-prod-public.yml) now provides lightweight failure reporting for the public prod edge on a schedule and by manual dispatch
+- [smoke-dev-public.yml](../.github/workflows/smoke-dev-public.yml) now provides lightweight failure reporting for the active public dev edge on a schedule and by manual dispatch
 - this split model is intentional because the cluster and `opensis.dev.local` are not fully reachable from GitHub-hosted runners
 - documented GitOps rollback guidance pairs directly with the smoke scripts
 
@@ -812,7 +812,7 @@ For each prod promotion or rollback, keep:
 - PR link
 - Argo CD final status
 - smoke check result
-- any public URL evidence such as `curl -k -I https://opensis.raysosglobal.com/`
+- any public URL evidence such as `curl -k -I https://opensis.eseosadevbox.com/`
 
 ### Rollback Guidance
 

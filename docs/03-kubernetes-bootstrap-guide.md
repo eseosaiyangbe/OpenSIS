@@ -353,7 +353,7 @@ Useful checks:
 kubectl get applications -n argocd
 kubectl get pods -n opensis
 ./scripts/smoke-prod.sh
-curl -I https://opensis.raysosglobal.com
+curl -I https://opensis.eseosadevbox.com
 ```
 
 You want:

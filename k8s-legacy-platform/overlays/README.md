@@ -6,7 +6,7 @@ They are preserved as legacy reference material, not as the active owned workspa
 
 The active Kubernetes path now starts at:
 
-- [../../k8s](/Users/raymond/Documents/DevOps-Easy-Learning/OpenSIS/k8s)
+- [../../k8s](../../k8s)
 
 This directory contains environment-specific Kustomize overlays built on top of [k8s/base](../base/kustomization.yaml).
 
@@ -63,7 +63,7 @@ It currently changes:
 
 - namespace to `opensis`
 - app replicas to `2`
-- ingress host to `opensis.raysosglobal.com`
+- ingress host to `opensis.eseosadevbox.com`
 - issuer to `letsencrypt-prod`
 - app image pinned through Kustomize to the immutable production tag `docker.io/eseosaiyangbe/opensis-ui:git-5100dfd`
 - production Vault roles and secret paths
@@ -74,7 +74,7 @@ Current promotion rule:
 
 - build and validate in `dev` first
 - promote `prod` only by changing the immutable `git-<sha>` tag in [k8s/overlays/prod/kustomization.yaml](prod/kustomization.yaml)
-- keep live production testing aligned with `https://opensis.raysosglobal.com`
+- keep live production testing aligned with `https://opensis.eseosadevbox.com`
 
 Current public-edge note:
 
@@ -98,7 +98,7 @@ kubectl apply -k k8s/overlays/prod
 Recommended verification after a prod image promotion:
 
 ```bash
-kubectl kustomize k8s/overlays/prod | rg 'image:|ingressClassName:|opensis.raysosglobal.com|opensis-prod-kube-state-metrics'
+kubectl kustomize k8s/overlays/prod | rg 'image:|ingressClassName:|opensis.eseosadevbox.com|opensis-prod-kube-state-metrics'
 kubectl get deploy,pods,svc,ingress -n opensis -o wide
 kubectl logs -n opensis deploy/opensis-ui --since=5m
 kubectl get applications.argoproj.io -n argocd

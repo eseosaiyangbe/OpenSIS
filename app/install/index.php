@@ -31,10 +31,15 @@ error_reporting(0);
 $page_name = basename($_SERVER['PHP_SELF']);
 $app_env = getenv('APP_ENV') ?: '';
 $data_file = dirname(__DIR__) . '/Data.php';
+$allow_installer_with_config = getenv('APP_ALLOW_INSTALLER_WHEN_CONFIG_PRESENT') ?: '';
 
-// In production, treat the presence of Data.php as an installed instance and
-// keep the installer route from remaining publicly reachable.
-if (in_array(strtolower($app_env), array('prod', 'production'), true) && file_exists($data_file)) {
+// Treat the presence of Data.php as an installed instance and keep the
+// installer route from remaining publicly reachable unless an operator
+// explicitly opts into the installer for a controlled maintenance action.
+if (
+    file_exists($data_file)
+    && !in_array(strtolower($allow_installer_with_config), array('1', 'true', 'yes'), true)
+) {
     header('Location: /index.php');
     exit;
 }

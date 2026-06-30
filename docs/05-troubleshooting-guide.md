@@ -187,7 +187,7 @@ If the change should be in Git, sync the app. If the live cluster was patched ma
 ```bash
 kubectl get jobs -n opensis --sort-by=.metadata.creationTimestamp
 kubectl get pods -n opensis
-curl -I https://opensis.raysosglobal.com
+curl -I https://opensis.eseosadevbox.com
 ```
 
 ### Common cause in this repo
@@ -294,7 +294,7 @@ On this repo’s learning path, manual unseal is expected after certain restarts
 
 ```bash
 kubectl exec -n opensis deploy/prometheus -- sh -lc 'wget -qO- "http://127.0.0.1:9090/api/v1/alerts"'
-kubectl exec -n opensis deploy/prometheus -- sh -lc 'wget -qO- "http://blackbox-exporter:9115/probe?module=http_2xx&target=https://opensis.raysosglobal.com&debug=true"'
+kubectl exec -n opensis deploy/prometheus -- sh -lc 'wget -qO- "http://blackbox-exporter:9115/probe?module=http_2xx&target=https://opensis.eseosadevbox.com&debug=true"'
 ```
 
 ### Common cause in this repo

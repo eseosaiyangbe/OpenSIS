@@ -6,7 +6,7 @@ It is intentionally separate from the `opensis` workload namespace.
 
 ## Design Intent
 
-- Cloudflare provides the public edge for `opensis.raysosglobal.com`
+- Cloudflare provides the public edge for `opensis.eseosadevbox.com`
 - Traefik remains the in-cluster ingress controller for the public path
 - `cloudflared` runs inside Kubernetes and connects outward to Cloudflare
 - the tunnel token is stored in Vault instead of a plain Kubernetes Secret
@@ -25,7 +25,7 @@ It is intentionally separate from the `opensis` workload namespace.
 
 Create a named tunnel in the Cloudflare dashboard and add this public hostname:
 
-- hostname: `opensis.raysosglobal.com`
+- hostname: `opensis.eseosadevbox.com`
 - service: `http://<NODE_IP>:30621`
 
 Use the Kubernetes node IP for `<NODE_IP>`. In this single-node k3s lab, `cloudflared` could not reliably reach the Traefik ClusterIP Service, but it could reach Traefik cleanly through the NodePort. You can discover the values with:

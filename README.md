@@ -11,6 +11,23 @@ It includes:
 
 The goal of this repo is not just to run the app once. The goal is to show a complete journey from local setup to a maintainable deployment model that can be explained, repeated, and improved over time.
 
+## CI/CD Workflow Model
+
+This repository now uses a four-lane delivery model:
+
+- `validate.yml`
+  Repository validation for workflows, shell scripts, YAML, and Kubernetes render checks.
+- `publish-dockerhub-image.yml`
+  Docker Hub image publishing with immutable `git-<sha>` tagging, SBOM generation, Trivy reporting, and Cosign signing.
+- `smoke-dev-public.yml`
+  Scheduled and on-demand verification of the active public `dev` edge.
+- `promote-prod.yml`
+  Manual GitOps promotion for the dormant `prod` contract, kept available but not treated as the active operating lane.
+
+For the current `dev`-first posture, `dev` follows `main` plus the mutable `dev` image alias. That is why there is no separate manual `promote-dev` workflow today. Manual promotion remains the right boundary for the held `prod` path.
+
+This separation keeps validation, artifact publishing, active `dev` verification, and dormant `prod` promotion independent. That makes the pipeline easier to audit, easier to reason about, and safer to operate.
+
 ## Who This Is For
 
 This repository is written for:

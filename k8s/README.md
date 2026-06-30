@@ -17,7 +17,7 @@ Current workspace standard:
 
 The previous OpenSIS Kubernetes implementation was preserved intact at:
 
-- [k8s-legacy-platform](/Users/raymond/Documents/DevOps-Easy-Learning/OpenSIS/k8s-legacy-platform)
+- [k8s-legacy-platform](../k8s-legacy-platform)
 
 That legacy tree still contains valuable reference material, including:
 
@@ -57,14 +57,14 @@ The intended owned shape is:
 
 ## Current Status
 
-This tree is now the clean ownership boundary for the next Phase 7 implementation slice.
+This tree is now the clean ownership boundary for the active OpenSIS Kubernetes path in this workspace.
 
 What is already true:
 
 - the older Kubernetes path has been archived under `k8s-legacy-platform`
 - this new directory is now the active target for future OpenSIS Kubernetes work
 - the assessment and migration decision for the new path is recorded in:
-  - [OPENSIS-K8S-ASSESSMENT.md](/Users/raymond/Documents/DevOps-Easy-Learning/OPENSIS-K8S-ASSESSMENT.md)
+  - [OPENSIS-K8S-ASSESSMENT.md](../OPENSIS-K8S-ASSESSMENT.md)
 - a live `k3s` `dev` rollout now works from this owned path with:
   - Traefik ingress on `opensis.devops.local`
   - Vault-backed External Secrets for app and DB env files
@@ -80,7 +80,7 @@ What is not claimed yet:
 The owned OpenSIS Kubernetes slice follows the same operator contract as the other migrated apps:
 
 ```bash
-cd /Users/raymond/Documents/DevOps-Easy-Learning/OpenSIS
+cd /Users/raymond/Documents/devops-easy-learning/opensis
 ./scripts/k8s-dev-deploy.sh
 ./scripts/k8s-dev-verify.sh
 ./scripts/k8s-dev-destroy.sh
@@ -93,20 +93,20 @@ Expected local dev hostname:
 Local browser host entries can be refreshed with:
 
 ```bash
-cd /Users/raymond/Documents/DevOps-Easy-Learning
+cd /Users/raymond/Documents/devops-easy-learning
 ./scripts/setup-devops-local-hosts.sh
 ```
 
 Secrets for both `dev` and `prod` are sourced from the shared workspace Vault bootstrap through External Secrets Operator. The active seeding and role reconciliation entrypoint is:
 
 ```bash
-cd /Users/raymond/Documents/DevOps-Easy-Learning
+cd /Users/raymond/Documents/devops-easy-learning
 ./scripts/bootstrap-k3s-vault-secrets.sh
 ```
 
 ## Related Documents
 
-- [OPENSIS-K8S-ASSESSMENT.md](/Users/raymond/Documents/DevOps-Easy-Learning/OPENSIS-K8S-ASSESSMENT.md)
-- [README.md](/Users/raymond/Documents/DevOps-Easy-Learning/OpenSIS/README.md)
-- [docs/03-kubernetes-bootstrap-guide.md](/Users/raymond/Documents/DevOps-Easy-Learning/OpenSIS/docs/03-kubernetes-bootstrap-guide.md)
-- [k8s-legacy-platform/README.md](/Users/raymond/Documents/DevOps-Easy-Learning/OpenSIS/k8s-legacy-platform/README.md)
+- [OPENSIS-K8S-ASSESSMENT.md](../OPENSIS-K8S-ASSESSMENT.md)
+- [README.md](../README.md)
+- [docs/03-kubernetes-bootstrap-guide.md](../docs/03-kubernetes-bootstrap-guide.md)
+- [k8s-legacy-platform/README.md](../k8s-legacy-platform/README.md)

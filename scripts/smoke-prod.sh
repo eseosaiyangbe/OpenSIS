@@ -6,7 +6,7 @@ CF_NS="cloudflare"
 ARGO_NS="argocd"
 APP_NAME="opensis-prod"
 CF_APP_NAME="opensis-cloudflare"
-URL="https://opensis.raysosglobal.com"
+URL="https://opensis.eseosadevbox.com"
 
 require() {
   command -v "$1" >/dev/null 2>&1 || {
