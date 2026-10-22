@@ -267,17 +267,17 @@ Installer values used by the current dev environment:
 - MySQL server: `opensis-db`
 - Port: `3306`
 - MySQL username: `root`
-- MySQL password: `opensis-root-123`
+- MySQL password: set in your local environment (not printed here)
 - Database name: `opensis`
 - Admin username: `admin`
-- Admin password: `Raymond@123`
+- Admin password: set during install (not printed here)
 
 After reinstall, verify:
 
 ```bash
 kubectl -n opensis-dev get pods
 kubectl -n opensis-dev exec deploy/opensis-ui -- sh -c 'ls -l /var/www/openSIS/Data.php'
-kubectl -n opensis-dev exec statefulset/opensis-db -- sh -c 'mysql -N -uroot -popensis-root-123 -D opensis -e "SELECT username, profile_id FROM login_authentication WHERE username=\"admin\";"'
+kubectl -n opensis-dev exec statefulset/opensis-db -- sh -c 'mysql -N -uroot -p -D opensis -e "SELECT username, profile_id FROM login_authentication WHERE username=\"admin\";"'
 ```
 
 ## Professional Notes
