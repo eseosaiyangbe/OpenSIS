@@ -179,6 +179,10 @@ docker compose -f docker-compose.yaml -f docker-compose.pullimage.yaml up -d
 
 ## High-Level Architecture
 
+![OpenSIS platform architecture](docs/architecture/opensis-platform-architecture.png)
+
+*OpenSIS as it is operated inside the Internal Developer Platform: the unrewritten openSIS Classic application (PHP and Apache) on Kubernetes, behind Cloudflare Tunnel and Traefik ingress, with Vault Agent injection rendering four credential sets at startup, MariaDB with exporter telemetry and executed backup and restore, the shared platform observability stack, and the four lane delivery model. Validated by the OpenSIS live audit (39 of 39 checks, Phase 6 lab audit), the Vault unavailable drill, and post restart recovery verification covering reachability, database health, and Vault state. The full design record, with the editable Mermaid source for this image, is in [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md). The text diagrams below remain the quick reference for the local and Kubernetes paths.*
+
 ### Local
 
 ```text
