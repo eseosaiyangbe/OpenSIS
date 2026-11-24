@@ -1,9 +1,52 @@
+# Secrets and local environment
 .env
+.env.*
+!.env.example
 command.sh
+
+# Cloudflare tunnel credentials (config.yaml stays tracked)
 cloudflared/credentials.json
-vault/init/init.txt
-vault-agent/*-secrets/*.env
-vault-agent/*-approle/secret_id
-vault-agent/*-approle/role_id
-vault/data/root_token
-vault/data/unseal_key
+cloudflared/cert.pem
+cloudflared/*.json
+
+# Vault generated data and rendered secrets
+vault/data/
+vault/init/
+vault-agent/*-secrets/
+vault-agent/*-approle/
+**/*.env
+!**/.env.example
+
+# OpenSIS installer output and runtime uploads
+app/Data.php
+app/assets/studentphotos/
+
+# Backups, archives and logs
+opensis-*.sql.gz
+*.sql.gz
+backups/
+*.tar
+*.tar.gz
+*.tgz
+*.log
+logs/
+
+# Local phase and planning scratch files
+phase*
+PHASE*
+
+# Local tooling state
+*.kubeconfig
+.terraform/
+terraform.tfstate*
+
+# OS and editor files
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Generated smoke test copy at repo root (tracked copy lives in tests/k8s/)
+/vault-smoke.yaml
